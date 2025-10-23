@@ -1,0 +1,85 @@
+{
+  "uploadedAt": "2025-09-11T17:49:46.206Z",
+  "tiers": {
+    "Brandon Aubrey": {
+      "tier": 1,
+      "position": 1
+    },
+    "Cameron Dicker": {
+      "tier": 1,
+      "position": 2
+    },
+    "Tyler Loop": {
+      "tier": 2,
+      "position": 1
+    },
+    "Wil Lutz": {
+      "tier": 2,
+      "position": 2
+    },
+    "Ka'imi Fairbairn": {
+      "tier": 2,
+      "position": 3
+    },
+    "Chris Boswell": {
+      "tier": 2,
+      "position": 4
+    },
+    "Cam Little": {
+      "tier": 3,
+      "position": 1
+    },
+    "Jake Bates": {
+      "tier": 3,
+      "position": 2
+    },
+    "Harrison Butker": {
+      "tier": 3,
+      "position": 3
+    },
+    "Jake Elliott": {
+      "tier": 3,
+      "position": 4
+    },
+    "Chase McLaughlin": {
+      "tier": 3,
+      "position": 5
+    },
+    "Evan McPherson": {
+      "tier": 3,
+      "position": 6
+    },
+    "Chad Ryland": {
+      "tier": 4,
+      "position": 1
+    },
+    "Will Reichard": {
+      "tier": 4,
+      "position": 2
+    },
+    "Matt Gay": {
+      "tier": 4,
+      "position": 3
+    },
+    "Matt Prater": {
+      "tier": 4,
+      "position": 4
+    },
+    "Brandon McManus": {
+      "tier": 5,
+      "position": 1
+    },
+    "Joshua Karty": {
+      "tier": 5,
+      "position": 2
+    },
+    "Younghoe Koo": {
+      "tier": 5,
+      "position": 3
+    },
+    "Daniel Carlson": {
+      "tier": 5,
+      "position": 4
+    }
+  }
+}

@@ -1,0 +1,429 @@
+{
+  "uploadedAt": "2025-09-21T16:49:36.103Z",
+  "projections": {
+    "Budda Baker": {
+      "team": "ARI",
+      "projection": 18.56
+    },
+    "Talanoa Hufanga": {
+      "team": "DEN",
+      "projection": 18.24
+    },
+    "Kyle Hamilton": {
+      "team": "BAL",
+      "projection": 18.19
+    },
+    "Nick Cross": {
+      "team": "IND",
+      "projection": 17.82
+    },
+    "Jaquan Brisker": {
+      "team": "CHI",
+      "projection": 17.53
+    },
+    "Tre'von Moehrig": {
+      "team": "CAR",
+      "projection": 16.72
+    },
+    "Andru Phillips": {
+      "team": "NYG",
+      "projection": 16.66
+    },
+    "Jalen Thompson": {
+      "team": "ARI",
+      "projection": 16.4
+    },
+    "Will Harris": {
+      "team": "WAS",
+      "projection": 16.07
+    },
+    "Byron Murphy": {
+      "team": "MIN",
+      "projection": 15.92
+    },
+    "Chamarri Conner": {
+      "team": "KC",
+      "projection": 15.59
+    },
+    "Cooper DeJean": {
+      "team": "PHI",
+      "projection": 15.54
+    },
+    "Xavier McKinney": {
+      "team": "GB",
+      "projection": 15.24
+    },
+    "Brian Branch": {
+      "team": "DET",
+      "projection": 15.23
+    },
+    "Tyler Nubin": {
+      "team": "NYG",
+      "projection": 15.23
+    },
+    "Marques Sigle": {
+      "team": "SF",
+      "projection": 15.17
+    },
+    "Derwin James": {
+      "team": "LAC",
+      "projection": 15.14
+    },
+    "Tykee Smith": {
+      "team": "TB",
+      "projection": 14.98
+    },
+    "Jourdan Lewis": {
+      "team": "JAX",
+      "projection": 14.76
+    },
+    "Cole Bishop": {
+      "team": "BUF",
+      "projection": 14.73
+    },
+    "Paulson Adebo": {
+      "team": "NYG",
+      "projection": 14.52
+    },
+    "Josh Metellus": {
+      "team": "MIN",
+      "projection": 14.47
+    },
+    "Keisean Nixon": {
+      "team": "GB",
+      "projection": 14.46
+    },
+    "Kamren Curl": {
+      "team": "LAR",
+      "projection": 14.33
+    },
+    "Jeremy Chinn": {
+      "team": "LV",
+      "projection": 14.31
+    },
+    "Xavier Watts": {
+      "team": "ATL",
+      "projection": 14.15
+    },
+    "Jartavius Martin": {
+      "team": "WAS",
+      "projection": 14.02
+    },
+    "Quinyon Mitchell": {
+      "team": "PHI",
+      "projection": 13.99
+    },
+    "Chuck Clark": {
+      "team": "PIT",
+      "projection": 13.86
+    },
+    "Tarheeb Still": {
+      "team": "LAC",
+      "projection": 13.77
+    },
+    "Denzel Ward": {
+      "team": "CLE",
+      "projection": 13.75
+    },
+    "Jonas Sanker": {
+      "team": "NO",
+      "projection": 13.56
+    },
+    "Amani Hooker": {
+      "team": "TEN",
+      "projection": 13.5
+    },
+    "Jalen Ramsey": {
+      "team": "PIT",
+      "projection": 13.49
+    },
+    "Donovan Wilson": {
+      "team": "DAL",
+      "projection": 13.44
+    },
+    "Reed Blankenship": {
+      "team": "PHI",
+      "projection": 13.2
+    },
+    "Terrion Arnold": {
+      "team": "DET",
+      "projection": 13.13
+    },
+    "Jalen Pitre": {
+      "team": "HOU",
+      "projection": 13.12
+    },
+    "Jessie Bates": {
+      "team": "ATL",
+      "projection": 13.12
+    },
+    "Renardo Green": {
+      "team": "SF",
+      "projection": 13.11
+    },
+    "Brandon Jones": {
+      "team": "DEN",
+      "projection": 13
+    },
+    "Alontae Taylor": {
+      "team": "NO",
+      "projection": 12.98
+    },
+    "Alohi Gilman": {
+      "team": "LAC",
+      "projection": 12.97
+    },
+    "Tyrique Stevenson": {
+      "team": "CHI",
+      "projection": 12.95
+    },
+    "Andrew Wingard": {
+      "team": "JAX",
+      "projection": 12.93
+    },
+    "Chauncey Gardner-Jonson": {
+      "team": "HOU",
+      "projection": 12.76
+    },
+    "Eric Murray": {
+      "team": "JAX",
+      "projection": 12.68
+    },
+    "Mike Sainistril": {
+      "team": "WAS",
+      "projection": 12.52
+    },
+    "Xavier Woods": {
+      "team": "TEN",
+      "projection": 12.38
+    },
+    "Grant Delpit": {
+      "team": "CLE",
+      "projection": 12.3
+    },
+    "Garrett Williams": {
+      "team": "ARI",
+      "projection": 12.29
+    },
+    "Minkah Fitzpatrick": {
+      "team": "MIA",
+      "projection": 12.27
+    },
+    "Devon Witherspoon": {
+      "team": "SEA",
+      "projection": 12.26
+    },
+    "Pat Surtain": {
+      "team": "DEN",
+      "projection": 12.15
+    },
+    "Justin Reid": {
+      "team": "NO",
+      "projection": 12.08
+    },
+    "Antoine Winfield": {
+      "team": "TB",
+      "projection": 11.98
+    },
+    "Nate Wiggins": {
+      "team": "BAL",
+      "projection": 11.98
+    },
+    "Craig Woodson": {
+      "team": "NE",
+      "projection": 11.96
+    },
+    "Roger McCreary": {
+      "team": "TEN",
+      "projection": 11.89
+    },
+    "Camryn Bynum": {
+      "team": "IND",
+      "projection": 11.88
+    },
+    "Jordan Battle": {
+      "team": "CIN",
+      "projection": 11.8
+    },
+    "Jaycee Horn": {
+      "team": "CAR",
+      "projection": 11.77
+    },
+    "Riley Moss": {
+      "team": "DEN",
+      "projection": 11.7
+    },
+    "Zyon McCollum": {
+      "team": "TB",
+      "projection": 11.59
+    },
+    "Quentin Lake": {
+      "team": "LAR",
+      "projection": 11.53
+    },
+    "D.J. Reed": {
+      "team": "DET",
+      "projection": 11.31
+    },
+    "Jaylinn Hawkins": {
+      "team": "NE",
+      "projection": 11.25
+    },
+    "Kamari Lassiter": {
+      "team": "HOU",
+      "projection": 11.17
+    },
+    "Tyson Campbell": {
+      "team": "JAX",
+      "projection": 11.07
+    },
+    "Bryan Cook": {
+      "team": "KC",
+      "projection": 10.97
+    },
+    "Christian Benford": {
+      "team": "BUF",
+      "projection": 10.96
+    },
+    "Tony Adams": {
+      "team": "NYJ",
+      "projection": 10.96
+    },
+    "Andre Cisco": {
+      "team": "NYJ",
+      "projection": 10.85
+    },
+    "Carlton Davis": {
+      "team": "NE",
+      "projection": 10.63
+    },
+    "Coby Bryant": {
+      "team": "SEA",
+      "projection": 10.47
+    },
+    "Ifeatu Melifonwui": {
+      "team": "MIA",
+      "projection": 10.34
+    },
+    "Kyu Blu Kelly": {
+      "team": "LV",
+      "projection": 10.25
+    },
+    "Kenny Moore": {
+      "team": "IND",
+      "projection": 10.16
+    },
+    "Dax Hill": {
+      "team": "CIN",
+      "projection": 10.05
+    },
+    "Sauce Gardner": {
+      "team": "NYJ",
+      "projection": 9.94
+    },
+    "Derek Stingley": {
+      "team": "HOU",
+      "projection": 9.8
+    },
+    "Josh Jobe": {
+      "team": "SEA",
+      "projection": 9.79
+    },
+    "Trevon Diggs": {
+      "team": "DAL",
+      "projection": 9.64
+    },
+    "Deommodore Lenoir": {
+      "team": "SF",
+      "projection": 9.58
+    },
+    "Andrew Mukuba": {
+      "team": "PHI",
+      "projection": 9.48
+    },
+    "Cobie Durant": {
+      "team": "LAR",
+      "projection": 9.48
+    },
+    "Jack Jones": {
+      "team": "MIA",
+      "projection": 9.47
+    },
+    "Kevin Byard": {
+      "team": "CHI",
+      "projection": 9.46
+    },
+    "L'Jarius Sneed": {
+      "team": "TEN",
+      "projection": 9.32
+    },
+    "Malik Hooker": {
+      "team": "DAL",
+      "projection": 9.07
+    },
+    "AJ Terrell": {
+      "team": "ATL",
+      "projection": 8.96
+    },
+    "Billy Bowman": {
+      "team": "ATL",
+      "projection": 8.93
+    },
+    "Evan Williams": {
+      "team": "GB",
+      "projection": 8.9
+    },
+    "Will Johnson": {
+      "team": "ARI",
+      "projection": 8.83
+    },
+    "Marlon Humphrey": {
+      "team": "BAL",
+      "projection": 8.69
+    },
+    "Cam Taylor-Britt": {
+      "team": "CIN",
+      "projection": 8.69
+    },
+    "Darius Slay": {
+      "team": "PIT",
+      "projection": 8.28
+    },
+    "Mike Hughes": {
+      "team": "ATL",
+      "projection": 8.25
+    },
+    "Trent McDuffie": {
+      "team": "KC",
+      "projection": 8.19
+    },
+    "Taylor Rapp": {
+      "team": "BUF",
+      "projection": 8.07
+    },
+    "Kerby Joseph": {
+      "team": "DET",
+      "projection": 7.85
+    },
+    "Kool-Aid McKinstry": {
+      "team": "NO",
+      "projection": 7.05
+    },
+    "Jason Pinnock": {
+      "team": "SF",
+      "projection": 7.01
+    },
+    "Max Melton": {
+      "team": "ARI",
+      "projection": 6.81
+    },
+    "Travis Hunter": {
+      "team": "JAX",
+      "projection": 6.51
+    },
+    "Jaden Hicks": {
+      "team": "KC",
+      "projection": 6.19
+    }
+  }
+}
