@@ -1,0 +1,13 @@
+{
+  "apphosting": {
+    "backendId": "boom-tho-league-home",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "functions"
+    ]
+  }
+}

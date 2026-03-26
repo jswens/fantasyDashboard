@@ -1,106 +1,78 @@
-import fs from 'fs';
-import path from 'path';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { adminDb } from '@/lib/firebase-admin';
 import { Team } from '@/lib/types';
 
+const CACHE_DOC = 'cache/teams';
+const CACHE_DURATION_MS = 60 * 60 * 1000; // 60 minutes
+
 export class TeamCacheService {
-  private cacheFilePath: string;
-  private cacheDuration: number; // in milliseconds
+  private cacheDuration: number;
 
   constructor(cacheDurationMinutes: number = 60) {
-    this.cacheFilePath = path.join(process.cwd(), 'data', 'teams-cache.json');
     this.cacheDuration = cacheDurationMinutes * 60 * 1000;
   }
 
-  /**
-   * Load teams from cache file
-   */
   async loadTeamsFromCache(): Promise<Team[] | null> {
     try {
-      if (!fs.existsSync(this.cacheFilePath)) {
-        console.log('Cache file does not exist');
+      const doc = await adminDb.doc(CACHE_DOC).get();
+      if (!doc.exists) return null;
+
+      const data = doc.data();
+      if (!data?.cachedAt || !data?.teams) return null;
+
+      const cachedAt: Timestamp = data.cachedAt;
+      const ageMs = Date.now() - cachedAt.toMillis();
+      if (ageMs > this.cacheDuration) {
+        console.log('Firestore cache expired, age:', Math.round(ageMs / 1000 / 60), 'minutes');
         return null;
       }
 
-      const stats = fs.statSync(this.cacheFilePath);
-      const now = Date.now();
-      const fileAge = now - stats.mtime.getTime();
-
-      // Check if cache is expired
-      if (fileAge > this.cacheDuration) {
-        console.log('Cache expired, age:', Math.round(fileAge / 1000 / 60), 'minutes');
-        return null;
-      }
-
-      const cacheData = fs.readFileSync(this.cacheFilePath, 'utf8');
-      const teams: Team[] = JSON.parse(cacheData);
-      
-      console.log(`Loaded ${teams.length} teams from cache`);
-      return teams;
+      console.log(`Loaded ${data.teams.length} teams from Firestore cache`);
+      return data.teams as Team[];
     } catch (error) {
-      console.error('Error loading teams from cache:', error);
+      console.error('Error loading teams from Firestore cache:', error);
       return null;
     }
   }
 
-  /**
-   * Save teams to cache file
-   */
   async saveTeamsToCache(teams: Team[]): Promise<boolean> {
     try {
-      // Ensure data directory exists
-      const dataDir = path.dirname(this.cacheFilePath);
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-      }
-
-      fs.writeFileSync(this.cacheFilePath, JSON.stringify(teams, null, 2));
-      console.log(`Saved ${teams.length} teams to cache`);
+      await adminDb.doc(CACHE_DOC).set({
+        teams,
+        cachedAt: FieldValue.serverTimestamp(),
+      });
+      console.log(`Saved ${teams.length} teams to Firestore cache`);
       return true;
     } catch (error) {
-      console.error('Error saving teams to cache:', error);
+      console.error('Error saving teams to Firestore cache:', error);
       return false;
     }
   }
 
-  /**
-   * Clear the cache file
-   */
   async clearCache(): Promise<boolean> {
     try {
-      if (fs.existsSync(this.cacheFilePath)) {
-        fs.unlinkSync(this.cacheFilePath);
-        console.log('Cache cleared');
-      }
+      await adminDb.doc(CACHE_DOC).delete();
+      console.log('Firestore cache cleared');
       return true;
     } catch (error) {
-      console.error('Error clearing cache:', error);
+      console.error('Error clearing Firestore cache:', error);
       return false;
     }
   }
 
-  /**
-   * Check if cache exists and is valid
-   */
   async isCacheValid(): Promise<boolean> {
     try {
-      if (!fs.existsSync(this.cacheFilePath)) {
-        return false;
-      }
-
-      const stats = fs.statSync(this.cacheFilePath);
-      const now = Date.now();
-      const fileAge = now - stats.mtime.getTime();
-
-      return fileAge <= this.cacheDuration;
-    } catch (error) {
-      console.error('Error checking cache validity:', error);
+      const doc = await adminDb.doc(CACHE_DOC).get();
+      if (!doc.exists) return false;
+      const data = doc.data();
+      if (!data?.cachedAt) return false;
+      const ageMs = Date.now() - (data.cachedAt as Timestamp).toMillis();
+      return ageMs <= this.cacheDuration;
+    } catch {
       return false;
     }
   }
 
-  /**
-   * Get cache metadata
-   */
   async getCacheInfo(): Promise<{
     exists: boolean;
     valid: boolean;
@@ -108,81 +80,41 @@ export class TeamCacheService {
     teamCount: number;
   } | null> {
     try {
-      if (!fs.existsSync(this.cacheFilePath)) {
-        return {
-          exists: false,
-          valid: false,
-          ageMinutes: 0,
-          teamCount: 0
-        };
+      const doc = await adminDb.doc(CACHE_DOC).get();
+      if (!doc.exists) {
+        return { exists: false, valid: false, ageMinutes: 0, teamCount: 0 };
       }
-
-      const stats = fs.statSync(this.cacheFilePath);
-      const now = Date.now();
-      const fileAge = now - stats.mtime.getTime();
-      const ageMinutes = Math.round(fileAge / 1000 / 60);
-      const isValid = fileAge <= this.cacheDuration;
-
-      const cacheData = fs.readFileSync(this.cacheFilePath, 'utf8');
-      const teams: Team[] = JSON.parse(cacheData);
-
+      const data = doc.data();
+      if (!data?.cachedAt) {
+        return { exists: true, valid: false, ageMinutes: 0, teamCount: 0 };
+      }
+      const ageMs = Date.now() - (data.cachedAt as Timestamp).toMillis();
+      const ageMinutes = Math.round(ageMs / 1000 / 60);
       return {
         exists: true,
-        valid: isValid,
-        ageMinutes: ageMinutes,
-        teamCount: teams.length
+        valid: ageMs <= this.cacheDuration,
+        ageMinutes,
+        teamCount: data.teams?.length ?? 0,
       };
     } catch (error) {
-      console.error('Error getting cache info:', error);
+      console.error('Error getting Firestore cache info:', error);
       return null;
     }
   }
 
-  /**
-   * Update a specific team in cache
-   */
   async updateTeamInCache(updatedTeam: Team): Promise<boolean> {
-    try {
-      const teams = await this.loadTeamsFromCache();
-      if (!teams) {
-        console.log('No cache to update');
-        return false;
-      }
-
-      const teamIndex = teams.findIndex(team => team.team_id === updatedTeam.team_id);
-      if (teamIndex === -1) {
-        console.log('Team not found in cache');
-        return false;
-      }
-
-      teams[teamIndex] = updatedTeam;
-      return await this.saveTeamsToCache(teams);
-    } catch (error) {
-      console.error('Error updating team in cache:', error);
-      return false;
-    }
+    const teams = await this.loadTeamsFromCache();
+    if (!teams) return false;
+    const idx = teams.findIndex(t => t.team_id === updatedTeam.team_id);
+    if (idx === -1) return false;
+    teams[idx] = updatedTeam;
+    return this.saveTeamsToCache(teams);
   }
 
-  /**
-   * Add or update multiple teams in cache
-   */
   async updateTeamsInCache(updatedTeams: Team[]): Promise<boolean> {
-    try {
-      const existingTeams = await this.loadTeamsFromCache() || [];
-      
-      // Create a map for faster lookups
-      const teamMap = new Map(existingTeams.map(team => [team.team_id, team]));
-      
-      // Update or add teams
-      updatedTeams.forEach(team => {
-        teamMap.set(team.team_id, team);
-      });
-      
-      const finalTeams = Array.from(teamMap.values());
-      return await this.saveTeamsToCache(finalTeams);
-    } catch (error) {
-      console.error('Error updating teams in cache:', error);
-      return false;
-    }
+    const existing = await this.loadTeamsFromCache() ?? [];
+    const map = new Map(existing.map(t => [t.team_id, t]));
+    updatedTeams.forEach(t => map.set(t.team_id, t));
+    return this.saveTeamsToCache(Array.from(map.values()));
   }
 }

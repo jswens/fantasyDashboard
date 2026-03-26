@@ -86,15 +86,8 @@ export class FantasyDataService {
 
       console.log(`Fetched ${Object.keys(allPlayers).length} players from Sleeper API`);
 
-      // Save raw player data to local file
-      const rawDataSaved = await this.dataProcessor.writePlayersToFile(allPlayers);
-      if (!rawDataSaved) {
-        console.error('Failed to save raw player data');
-        return false;
-      }
-
       // Create processed players cache with cap numbers
-      const processedCacheCreated = await this.dataProcessor.createProcessedPlayersCache();
+      const processedCacheCreated = await this.dataProcessor.createProcessedPlayersCache(allPlayers);
       if (!processedCacheCreated) {
         console.error('Failed to create processed players cache');
         return false;

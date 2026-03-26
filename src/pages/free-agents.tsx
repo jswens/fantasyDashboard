@@ -1,38 +1,18 @@
-import { useState, useEffect } from 'react';
-import PasswordForm from '@/components/auth/PasswordForm';
+import { useAuth } from '@/lib/hooks/useAuth';
+import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import FreeAgentsDisplay from '@/components/free-agents/FreeAgentsDisplay';
+import Loading from '@/components/common/Loading';
 
 export default function FreeAgentsPage() {
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const { user, isAdmin, loading } = useAuth();
 
-  // Check for existing session on page load
-  useEffect(() => {
-    const savedToken = localStorage.getItem('adminSessionToken');
-    if (savedToken) {
-      setSessionToken(savedToken);
-    }
-  }, []);
+  if (loading) {
+    return <Loading />;
+  }
 
-  const handleAuthenticated = (token: string) => {
-    setSessionToken(token);
-    localStorage.setItem('adminSessionToken', token);
-  };
+  if (!user) {
+    return <GoogleSignIn user={null} />;
+  }
 
-  const handleLogout = () => {
-    setSessionToken(null);
-    localStorage.removeItem('adminSessionToken');
-  };
-
-  return (
-    <>
-      {sessionToken ? (
-        <FreeAgentsDisplay 
-          sessionToken={sessionToken}
-          onLogout={handleLogout}
-        />
-      ) : (
-        <PasswordForm onAuthenticated={handleAuthenticated} />
-      )}
-    </>
-  );
+  return <FreeAgentsDisplay user={user} isAdmin={isAdmin} />;
 }

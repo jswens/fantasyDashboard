@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { FantasyDataService } from '@/lib/services/fantasy-data';
-import { validateSession } from '@/lib/auth/persistent-sessions';
-import fs from 'fs';
-import path from 'path';
+import { requireAuth } from '@/lib/auth/firebase-auth';
+import { adminDb } from '@/lib/firebase-admin';
 
 interface ProcessedPlayer {
   first_name: string;
@@ -53,10 +52,9 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
   // Load projections if available
   let projections: Record<string, { team: string; projection: number }> = {};
   try {
-    const projectionsCachePath = path.join(process.cwd(), 'data', 'projections-cache.json');
-    if (fs.existsSync(projectionsCachePath)) {
-      const projectionsData = JSON.parse(fs.readFileSync(projectionsCachePath, 'utf8'));
-      projections = projectionsData.projections || {};
+    const projDoc = await adminDb.collection('cache').doc('projections').get();
+    if (projDoc.exists) {
+      projections = projDoc.data()?.projections || {};
     }
   } catch (error) {
     console.warn('No projections data available:', error);
@@ -65,21 +63,22 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
   // Load tiers if available
   let tiers: Record<string, { tier: number; position: number }> = {};
   try {
-    const tiersCachePath = path.join(process.cwd(), 'data', 'tiers-cache.json');
-    if (fs.existsSync(tiersCachePath)) {
-      const tiersData = JSON.parse(fs.readFileSync(tiersCachePath, 'utf8'));
-      tiers = tiersData.tiers || {};
+    const tiersDoc = await adminDb.collection('cache').doc('tiers').get();
+    if (tiersDoc.exists) {
+      tiers = tiersDoc.data()?.tiers || {};
     }
   } catch (error) {
     console.warn('No tier data available:', error);
   }
 
-  // Load processed players from cache file
+  // Load processed players from Firestore
   try {
-    const cacheFilePath = path.join(process.cwd(), 'data', 'processed-players-cache.json');
-    const fileData = fs.readFileSync(cacheFilePath, 'utf8');
-    const cache = JSON.parse(fileData);
-    const processedPlayers: Record<string, ProcessedPlayer> = cache.players;
+    const snapshot = await adminDb.collection('players').get();
+    if (snapshot.empty) throw new Error('No processed players in Firestore');
+    const processedPlayers: Record<string, ProcessedPlayer> = {};
+    snapshot.forEach(doc => {
+      processedPlayers[doc.id] = doc.data() as ProcessedPlayer;
+    });
 
     // Find free agents (players not on any roster)
     const freeAgents: FreeAgent[] = [];
@@ -205,21 +204,13 @@ export default async function handler(
     });
   }
 
-  // Check authentication
-  const sessionToken = req.headers.authorization?.replace('Bearer ', '');
-  
-  console.log(`[FREE_AGENTS] Request received`);
-  console.log(`[FREE_AGENTS] Session token provided: ${sessionToken ? sessionToken.substring(0, 8) + '...' : 'NONE'}`);
-  
-  if (!sessionToken || !validateSession(sessionToken)) {
-    console.log(`[FREE_AGENTS] Authentication failed - Token: ${sessionToken ? 'provided but invalid' : 'missing'}`);
+  const decoded = await requireAuth(req);
+  if (!decoded) {
     return res.status(401).json({
       success: false,
-      message: 'Unauthorized - Invalid or missing session token'
+      message: 'Unauthorized'
     });
   }
-  
-  console.log(`[FREE_AGENTS] Authentication successful, fetching free agents data`);
 
   try {
     // Get free agents

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { User } from 'firebase/auth';
 
 interface FreeAgent {
   player_id: string;
@@ -18,26 +19,11 @@ interface FreeAgentsByPosition {
 }
 
 interface FreeAgentsDisplayProps {
-  sessionToken: string;
-  onLogout: () => void;
+  user: User;
+  isAdmin: boolean;
 }
 
-// Helper function to handle logout API call
-async function handleLogoutAPI(sessionToken: string): Promise<void> {
-  try {
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${sessionToken}`,
-      },
-    });
-  } catch (error) {
-    console.warn('Logout API call failed:', error);
-  }
-}
-
-export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgentsDisplayProps) {
+export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayProps) {
   const [freeAgents, setFreeAgents] = useState<FreeAgentsByPosition>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -52,24 +38,17 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
 
   const positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
 
+  const getAuthHeader = useCallback(async () => {
+    const idToken = await user.getIdToken();
+    return { Authorization: `Bearer ${idToken}` };
+  }, [user]);
+
   const fetchFreeAgents = useCallback(async () => {
     try {
-      const response = await fetch('/api/free-agents', {
-        headers: {
-          'Authorization': `Bearer ${sessionToken}`,
-        },
-      });
+      const headers = await getAuthHeader();
+      const response = await fetch('/api/free-agents', { headers });
 
       const data = await response.json();
-
-      if (response.status === 401) {
-        // Session is invalid, force re-authentication
-        setError('Session expired. Please log in again.');
-        setTimeout(() => {
-          onLogout();
-        }, 2000);
-        return;
-      }
 
       if (data.success) {
         setFreeAgents(data.data);
@@ -83,7 +62,7 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, onLogout]);
+  }, [getAuthHeader]);
 
   useEffect(() => {
     fetchFreeAgents();
@@ -92,16 +71,15 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
   const handleProjectionUpload = async (file: File) => {
     setUploadingProjections(true);
     setUploadMessage('');
-    
+
     try {
+      const headers = await getAuthHeader();
       const formData = new FormData();
       formData.append('projections', file);
 
       const response = await fetch('/api/upload-projections', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${sessionToken}`,
-        },
+        headers,
         body: formData,
       });
 
@@ -109,7 +87,6 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
 
       if (data.success) {
         setUploadMessage(data.message);
-        // Refresh free agents data to show new rankings
         setLoading(true);
         await fetchFreeAgents();
       } else {
@@ -125,17 +102,15 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
 
   const handleTierUpload = async () => {
     if (!tierText.trim()) return;
-    
+
     setUploadingTiers(true);
     setTierMessage('');
-    
+
     try {
+      const headers = await getAuthHeader();
       const response = await fetch('/api/upload-tiers', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}`,
-        },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({ tierText }),
       });
 
@@ -145,7 +120,6 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
         setTierMessage(data.message);
         setTierText('');
         setShowTierInput(false);
-        // Refresh free agents data to show new rankings
         setLoading(true);
         await fetchFreeAgents();
       } else {
@@ -172,12 +146,6 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-600 text-xl mb-4">{error}</div>
-          <button
-            onClick={onLogout}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Return to Login
-          </button>
         </div>
       </div>
     );
@@ -201,63 +169,51 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
                 )}
               </p>
             </div>
-            <div className="flex space-x-4">
-              {/* Upload Projections */}
-              <label className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center cursor-pointer">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Upload CSV
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleProjectionUpload(file);
-                    }
-                  }}
-                  className="hidden"
-                />
-              </label>
+            {isAdmin && (
+              <div className="flex space-x-4">
+                {/* Upload Projections */}
+                <label className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center cursor-pointer">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  {uploadingProjections ? 'Uploading...' : 'Upload CSV'}
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleProjectionUpload(file);
+                    }}
+                    className="hidden"
+                    disabled={uploadingProjections}
+                  />
+                </label>
 
-              {/* Upload Tiers */}
-              <button
-                onClick={() => setShowTierInput(!showTierInput)}
-                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Upload Tiers
-              </button>
-              
-              <button
-                onClick={async () => {
-                  await handleLogoutAPI(sessionToken);
-                  onLogout();
-                }}
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Logout
-              </button>
-            </div>
+                {/* Upload Tiers */}
+                <button
+                  onClick={() => setShowTierInput(!showTierInput)}
+                  className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Upload Tiers
+                </button>
+              </div>
+            )}
           </div>
-          
+
           {/* Upload Status Messages */}
           {uploadMessage && (
-            <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
               <div className={`rounded-md p-4 ${uploadMessage.startsWith('Error') ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
                 <p className="text-sm">{uploadMessage}</p>
               </div>
             </div>
           )}
-          
+
           {tierMessage && (
-            <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
               <div className={`rounded-md p-4 ${tierMessage.startsWith('Error') ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-800'}`}>
                 <p className="text-sm">{tierMessage}</p>
               </div>
@@ -281,10 +237,7 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
                 />
                 <div className="mt-4 flex justify-end space-x-3">
                   <button
-                    onClick={() => {
-                      setShowTierInput(false);
-                      setTierText('');
-                    }}
+                    onClick={() => { setShowTierInput(false); setTierText(''); }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                     disabled={uploadingTiers}
                   >
@@ -352,15 +305,11 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-sm font-medium text-blue-600">
-                              #{index + 1}
-                            </span>
+                            <span className="text-sm font-medium text-blue-600">#{index + 1}</span>
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {player.full_name}
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{player.full_name}</div>
                           <div className="text-sm text-gray-500">
                             {player.team ? `${player.team} • ${player.position}` : player.position}
                           </div>
@@ -369,26 +318,16 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
                       <div className="text-right">
                         {player.tier !== undefined ? (
                           <>
-                            <div className="text-sm font-medium text-purple-600">
-                              Tier {player.tier}
-                            </div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {player.cap_value_formatted}
-                            </div>
+                            <div className="text-sm font-medium text-purple-600">Tier {player.tier}</div>
+                            <div className="text-sm font-medium text-gray-900">{player.cap_value_formatted}</div>
                           </>
                         ) : player.projection !== undefined ? (
                           <>
-                            <div className="text-sm font-medium text-green-600">
-                              {player.projection.toFixed(1)} pts
-                            </div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {player.cap_value_formatted}
-                            </div>
+                            <div className="text-sm font-medium text-green-600">{player.projection.toFixed(1)} pts</div>
+                            <div className="text-sm font-medium text-gray-900">{player.cap_value_formatted}</div>
                           </>
                         ) : (
-                          <div className="text-sm font-medium text-gray-900">
-                            {player.cap_value_formatted}
-                          </div>
+                          <div className="text-sm font-medium text-gray-900">{player.cap_value_formatted}</div>
                         )}
                         <div className="text-sm text-gray-500">
                           {player.tier !== undefined ? (
@@ -424,12 +363,8 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Free Agents
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {totalFreeAgents.toLocaleString()}
-                    </dd>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Free Agents</dt>
+                    <dd className="text-lg font-medium text-gray-900">{totalFreeAgents.toLocaleString()}</dd>
                   </dl>
                 </div>
               </div>
@@ -446,9 +381,7 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Positions Available
-                    </dt>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Positions Available</dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {positions.filter(pos => (freeAgents[pos]?.length || 0) > 0).length}
                     </dd>
@@ -468,9 +401,7 @@ export default function FreeAgentsDisplay({ sessionToken, onLogout }: FreeAgents
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Highest Cap Value
-                    </dt>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Highest Cap Value</dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {freeAgents[selectedPosition]?.[0]?.cap_value_formatted || 'N/A'}
                     </dd>

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { validateSession } from '@/lib/auth/persistent-sessions';
-import fs from 'fs';
-import path from 'path';
+import { requireAdmin } from '@/lib/auth/firebase-auth';
+import { adminDb } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 
 interface TierData {
   [playerName: string]: {
@@ -66,20 +66,16 @@ export default async function handler(
     });
   }
 
-  // Check authentication
-  const sessionToken = req.headers.authorization?.replace('Bearer ', '');
-  
   console.log(`[TIER_UPLOAD] Tier upload request received`);
-  console.log(`[TIER_UPLOAD] Session token provided: ${sessionToken ? sessionToken.substring(0, 8) + '...' : 'NONE'}`);
-  
-  if (!sessionToken || !validateSession(sessionToken)) {
-    console.log(`[TIER_UPLOAD] Authentication failed - Token: ${sessionToken ? 'provided but invalid' : 'missing'}`);
-    return res.status(401).json({
+
+  const isAdmin = await requireAdmin(req);
+  if (!isAdmin) {
+    return res.status(403).json({
       success: false,
-      message: 'Unauthorized - Invalid or missing session token'
+      message: 'Forbidden - admin access required'
     });
   }
-  
+
   console.log(`[TIER_UPLOAD] Authentication successful, processing tier data`);
 
   try {
@@ -102,21 +98,11 @@ export default async function handler(
       });
     }
 
-    // Store tiers in a cache file
-    const cacheDir = path.join(process.cwd(), 'data');
-    const tiersCachePath = path.join(cacheDir, 'tiers-cache.json');
-    
-    // Ensure data directory exists
-    if (!fs.existsSync(cacheDir)) {
-      fs.mkdirSync(cacheDir, { recursive: true });
-    }
-    
-    const cacheData = {
-      uploadedAt: new Date().toISOString(),
-      tiers
-    };
-    
-    fs.writeFileSync(tiersCachePath, JSON.stringify(cacheData, null, 2));
+    // Store tiers in Firestore
+    await adminDb.collection('cache').doc('tiers').set({
+      tiers,
+      uploadedAt: FieldValue.serverTimestamp(),
+    });
 
     return res.status(200).json({
       success: true,

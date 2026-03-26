@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { FantasyDataService } from '@/lib/services/fantasy-data';
+import { requireAdmin } from '@/lib/auth/firebase-auth';
 
 export default async function handler(
   req: NextApiRequest,
@@ -7,6 +8,11 @@ export default async function handler(
 ) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const isAdmin = await requireAdmin(req);
+  if (!isAdmin) {
+    return res.status(403).json({ error: 'Forbidden - admin access required' });
   }
 
   try {

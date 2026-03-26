@@ -2,6 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { SleeperPlayer } from '@/lib/types/sleeper';
 import { CapNumbersData, CapNumberRow } from '@/lib/types/sleeper';
+import { adminDb } from '@/lib/firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
+
+const PLAYERS_COLLECTION = 'players';
+const PLAYERS_META_DOC = 'playersMeta';
+const PLAYERS_CACHE_TTL_HOURS = 24;
 
 export class DataProcessor {
   private dataDir: string;
@@ -15,13 +21,12 @@ export class DataProcessor {
       const filePath = path.join(this.dataDir, 'capsheet.csv');
       const fileData = fs.readFileSync(filePath, 'utf8');
       const lines = fileData.split('\n');
-      
-      // Skip header line and parse each row
+
       const capRows: CapNumberRow[] = [];
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        
+
         const columns = this.parseCSVLine(line);
         if (columns.length >= 4) {
           capRows.push({
@@ -36,7 +41,7 @@ export class DataProcessor {
           });
         }
       }
-      
+
       return capRows;
     } catch (error) {
       console.error('Error reading capsheet.csv:', error);
@@ -48,10 +53,10 @@ export class DataProcessor {
     const result: string[] = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      
+
       if (char === '"') {
         inQuotes = !inQuotes;
       } else if (char === ',' && !inQuotes) {
@@ -61,25 +66,15 @@ export class DataProcessor {
         current += char;
       }
     }
-    
-    // Don't forget the last field
+
     result.push(current.trim());
-    
     return result;
   }
 
-  async createProcessedPlayersCache(): Promise<boolean> {
+  async createProcessedPlayersCache(rawPlayers: Record<string, SleeperPlayer>): Promise<boolean> {
     try {
-      console.log('Creating processed players cache...');
-      
-      // Read raw players from Sleeper API cache
-      const rawPlayers = await this.readPlayersFromFile();
-      if (!rawPlayers) {
-        console.error('No raw players data found');
-        return false;
-      }
+      console.log('Creating processed players cache in Firestore...');
 
-      // Read cap data from CSV
       const capRows = await this.readCapsheetCSV();
       if (capRows.length === 0) {
         console.error('No cap data found in CSV');
@@ -88,8 +83,14 @@ export class DataProcessor {
 
       console.log(`Processing ${Object.keys(rawPlayers).length} players with ${capRows.length} cap entries`);
 
-      // Process players with cap numbers
-      const processedPlayers: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }> = {};
+      type ProcessedPlayer = SleeperPlayer & {
+        cap_value: number;
+        cap_value_formatted: string;
+        search_name: string;
+        has_zero_cap_warning: boolean;
+      };
+
+      const processedPlayers: Record<string, ProcessedPlayer> = {};
       let zeroCapHitCount = 0;
 
       for (const [playerId, player] of Object.entries(rawPlayers)) {
@@ -97,11 +98,11 @@ export class DataProcessor {
           const capNumber = this.findPlayerCapNumberFromRows(player, capRows);
           const capValue = this.convertCurrencyToInt(capNumber);
           const hasZeroCapWarning = capValue === 0;
-          
+
           if (hasZeroCapWarning) {
             zeroCapHitCount++;
           }
-          
+
           processedPlayers[playerId] = {
             ...player,
             cap_value: capValue,
@@ -114,16 +115,31 @@ export class DataProcessor {
 
       console.log(`⚠️  Warning: ${zeroCapHitCount} players have zero cap hit`);
 
-      // Save processed players to cache
-      const cacheFilePath = path.join(this.dataDir, 'processed-players-cache.json');
-      fs.writeFileSync(cacheFilePath, JSON.stringify({
-        timestamp: new Date().toISOString(),
-        zero_cap_warning_count: zeroCapHitCount,
-        total_players: Object.keys(processedPlayers).length,
-        players: processedPlayers
-      }, null, 2));
+      // Batch write to Firestore in chunks of 500 (Firestore limit)
+      const playerEntries = Object.entries(processedPlayers);
+      const BATCH_SIZE = 500;
 
-      console.log(`Cached ${Object.keys(processedPlayers).length} processed players`);
+      for (let i = 0; i < playerEntries.length; i += BATCH_SIZE) {
+        const chunk = playerEntries.slice(i, i + BATCH_SIZE);
+        const batch = adminDb.batch();
+
+        for (const [playerId, player] of chunk) {
+          const docRef = adminDb.collection(PLAYERS_COLLECTION).doc(playerId);
+          batch.set(docRef, player);
+        }
+
+        await batch.commit();
+        console.log(`Wrote players batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(playerEntries.length / BATCH_SIZE)}`);
+      }
+
+      // Write metadata doc
+      await adminDb.collection('cache').doc(PLAYERS_META_DOC).set({
+        cachedAt: FieldValue.serverTimestamp(),
+        totalPlayers: playerEntries.length,
+        zeroCapWarningCount: zeroCapHitCount,
+      });
+
+      console.log(`Cached ${playerEntries.length} processed players to Firestore`);
       return true;
     } catch (error) {
       console.error('Error creating processed players cache:', error);
@@ -135,7 +151,6 @@ export class DataProcessor {
     const playerTeam = player.team;
     const playerPosition = player.position;
 
-    // Team abbreviation mapping from Sleeper to capsheet format
     const teamMapping: Record<string, string> = {
       'ARI': 'Arizona Cardinals',
       'ATL': 'Atlanta Falcons',
@@ -173,7 +188,6 @@ export class DataProcessor {
 
     const fullTeamName = teamMapping[playerTeam || ''] || playerTeam;
 
-    // Helper function to normalize names (remove suffixes like Jr., III, etc.)
     const normalizeName = (name: string): string => {
       return name.toLowerCase()
         .replace(/\s+(jr\.?|sr\.?|iii|iv|ii)$/i, '')
@@ -181,11 +195,9 @@ export class DataProcessor {
         .trim();
     };
 
-    // Helper function for nickname/common name variations
     const getNameVariations = (firstName: string, lastName: string): string[] => {
       const variations = [`${firstName} ${lastName}`];
-      
-      // Common nickname mappings
+
       const nicknames: Record<string, string[]> = {
         'cam': ['cameron'],
         'cameron': ['cam'],
@@ -205,7 +217,6 @@ export class DataProcessor {
         'steven': ['steve']
       };
 
-      // Add nickname variations
       const lowerFirst = firstName.toLowerCase();
       if (nicknames[lowerFirst]) {
         for (const variation of nicknames[lowerFirst]) {
@@ -213,7 +224,6 @@ export class DataProcessor {
         }
       }
 
-      // Add common spelling variations
       const spellingVariations: Record<string, string[]> = {
         'terrance': ['terrence'],
         'terrence': ['terrance']
@@ -228,45 +238,40 @@ export class DataProcessor {
       return variations;
     };
 
-    // Try different matching strategies
     const nameVariations = getNameVariations(player.first_name, player.last_name);
-    
+
     for (const row of capRows) {
-      // Strategy 1: Try all name variations with exact team match
       for (const nameVariation of nameVariations) {
-        if (row.name.toLowerCase() === nameVariation.toLowerCase() && 
+        if (row.name.toLowerCase() === nameVariation.toLowerCase() &&
             (row.team === fullTeamName || row.abbreviation === playerTeam)) {
           return row.salary_cap;
         }
       }
 
-      // Strategy 2: Try all name variations with normalized names and team match
       for (const nameVariation of nameVariations) {
         const normalizedRowName = normalizeName(row.name);
         const normalizedVariation = normalizeName(nameVariation);
-        
-        if (normalizedRowName === normalizedVariation && 
+
+        if (normalizedRowName === normalizedVariation &&
             (row.team === fullTeamName || row.abbreviation === playerTeam)) {
           return row.salary_cap;
         }
       }
 
-      // Strategy 3: Name match with position verification (for when team data is unreliable)
       for (const nameVariation of nameVariations) {
         const normalizedRowName = normalizeName(row.name);
         const normalizedVariation = normalizeName(nameVariation);
-        
-        if (normalizedRowName === normalizedVariation && 
+
+        if (normalizedRowName === normalizedVariation &&
             (row.position === playerPosition || row.position_group === playerPosition)) {
           return row.salary_cap;
         }
       }
 
-      // Strategy 4: Exact name match only (fallback when team/position data is missing)
       for (const nameVariation of nameVariations) {
         const normalizedRowName = normalizeName(row.name);
         const normalizedVariation = normalizeName(nameVariation);
-        
+
         if (normalizedRowName === normalizedVariation) {
           return row.salary_cap;
         }
@@ -278,60 +283,55 @@ export class DataProcessor {
 
   async loadProcessedPlayersFromCache(): Promise<Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }> | null> {
     try {
-      const cacheFilePath = path.join(this.dataDir, 'processed-players-cache.json');
-      
-      if (!fs.existsSync(cacheFilePath)) {
-        return null;
-      }
+      // Check metadata doc for TTL
+      const metaDoc = await adminDb.collection('cache').doc(PLAYERS_META_DOC).get();
+      if (!metaDoc.exists) return null;
 
-      const fileData = fs.readFileSync(cacheFilePath, 'utf8');
-      const cache = JSON.parse(fileData);
-      
-      // Check if cache is less than 24 hours old
-      const cacheTime = new Date(cache.timestamp);
-      const now = new Date();
-      const hoursDiff = (now.getTime() - cacheTime.getTime()) / (1000 * 60 * 60);
-      
-      if (hoursDiff > 24) {
+      const meta = metaDoc.data()!;
+      const cachedAt = meta.cachedAt?.toDate?.() as Date | undefined;
+      if (!cachedAt) return null;
+
+      const hoursDiff = (Date.now() - cachedAt.getTime()) / (1000 * 60 * 60);
+      if (hoursDiff > PLAYERS_CACHE_TTL_HOURS) {
         console.log('Processed players cache is stale (>24 hours old)');
         return null;
       }
 
-      // Ensure all players have the has_zero_cap_warning property for backward compatibility
-      const players = cache.players;
-      for (const playerId in players) {
-        if (players[playerId] && typeof players[playerId].has_zero_cap_warning === 'undefined') {
-          players[playerId].has_zero_cap_warning = players[playerId].cap_value === 0;
-        }
-      }
+      // Read all player documents
+      const snapshot = await adminDb.collection(PLAYERS_COLLECTION).get();
+      if (snapshot.empty) return null;
 
-      console.log(`Loaded ${Object.keys(cache.players).length} players from processed cache`);
+      const players: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }> = {};
+      snapshot.forEach(doc => {
+        const data = doc.data() as SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; };
+        if (typeof data.has_zero_cap_warning === 'undefined') {
+          data.has_zero_cap_warning = data.cap_value === 0;
+        }
+        players[doc.id] = data;
+      });
+
+      console.log(`Loaded ${Object.keys(players).length} players from Firestore cache`);
       return players;
     } catch (error) {
-      console.error('Error loading processed players cache:', error);
+      console.error('Error loading processed players cache from Firestore:', error);
       return null;
     }
   }
 
   async getZeroCapWarningStats(): Promise<{ zeroCapCount: number; totalPlayers: number; percentage: number } | null> {
     try {
-      const cacheFilePath = path.join(this.dataDir, 'processed-players-cache.json');
-      
-      if (!fs.existsSync(cacheFilePath)) {
-        return null;
-      }
+      const metaDoc = await adminDb.collection('cache').doc(PLAYERS_META_DOC).get();
+      if (!metaDoc.exists) return null;
 
-      const fileData = fs.readFileSync(cacheFilePath, 'utf8');
-      const cache = JSON.parse(fileData);
-      
-      const zeroCapCount = cache.zero_cap_warning_count || 0;
-      const totalPlayers = cache.total_players || 0;
+      const meta = metaDoc.data()!;
+      const zeroCapCount = meta.zeroCapWarningCount || 0;
+      const totalPlayers = meta.totalPlayers || 0;
       const percentage = totalPlayers > 0 ? (zeroCapCount / totalPlayers) * 100 : 0;
-      
+
       return {
         zeroCapCount,
         totalPlayers,
-        percentage: Math.round(percentage * 10) / 10 // Round to 1 decimal place
+        percentage: Math.round(percentage * 10) / 10
       };
     } catch (error) {
       console.error('Error getting zero cap warning stats:', error);
@@ -339,37 +339,23 @@ export class DataProcessor {
     }
   }
 
+  // Kept for compatibility — raw player data is no longer persisted separately
   async readPlayersFromFile(): Promise<Record<string, SleeperPlayer> | null> {
-    try {
-      const filePath = path.join(this.dataDir, 'players.json');
-      const fileData = fs.readFileSync(filePath, 'utf8');
-      return JSON.parse(fileData);
-    } catch (error) {
-      console.error('Error reading players.json:', error);
-      return null;
-    }
+    return null;
+  }
+
+  async writePlayersToFile(_players: Record<string, SleeperPlayer>): Promise<boolean> {
+    return true;
   }
 
   async readCapNumbersFromFile(): Promise<CapNumbersData | null> {
     try {
-      // cap_numbers.json is in the parent directory
       const filePath = path.join(process.cwd(), '..', 'cap_numbers.json');
       const fileData = fs.readFileSync(filePath, 'utf8');
       return JSON.parse(fileData);
     } catch (error) {
       console.error('Error reading cap_numbers.json:', error);
       return null;
-    }
-  }
-
-  async writePlayersToFile(players: Record<string, SleeperPlayer>): Promise<boolean> {
-    try {
-      const filePath = path.join(this.dataDir, 'players.json');
-      fs.writeFileSync(filePath, JSON.stringify(players, null, 2));
-      return true;
-    } catch (error) {
-      console.error('Error writing players.json:', error);
-      return false;
     }
   }
 
@@ -384,7 +370,6 @@ export class DataProcessor {
     }
   }
 
-  // Convert currency string to integer (from Python logic)
   convertCurrencyToInt(currencyStr: string | null): number {
     if (currencyStr === null || currencyStr === undefined) {
       return 0;
@@ -393,33 +378,29 @@ export class DataProcessor {
     return parseInt(cleanStr, 10) || 0;
   }
 
-  // Match player to cap number (from Python logic)
   findPlayerCapNumber(player: SleeperPlayer, capNumbers: CapNumberRow[]): string | null {
     if (!player.first_name || !player.last_name || !player.team) {
       return null;
     }
 
     const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
-    
+
     for (const cap of capNumbers) {
       if (cap.name && cap.abbreviation && cap.salary_cap) {
         const capPlayerName = cap.name.toLowerCase();
         const capTeamCode = cap.abbreviation;
-        
-        // Match by full name and team
+
         if (capPlayerName === fullName && capTeamCode === player.team) {
           return cap.salary_cap;
         }
       }
     }
-    
-    // If exact match failed, try fuzzy matching by checking if names are similar
+
     for (const cap of capNumbers) {
       if (cap.name && cap.abbreviation && cap.salary_cap) {
         const capPlayerName = cap.name.toLowerCase();
         const capTeamCode = cap.abbreviation;
-        
-        // Check if the cap name contains both first and last name and team matches
+
         if (capTeamCode === player.team &&
             capPlayerName.includes(player.first_name.toLowerCase()) &&
             capPlayerName.includes(player.last_name.toLowerCase())) {
@@ -427,29 +408,18 @@ export class DataProcessor {
         }
       }
     }
-    
+
     return null;
   }
 
-  // Process players with cap numbers (mirroring Python logic)
   async processPlayersWithCapNumbers(): Promise<Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }> | null> {
-    // First try to load from processed cache
     const cachedPlayers = await this.loadProcessedPlayersFromCache();
     if (cachedPlayers) {
       console.log('Using cached processed players');
       return cachedPlayers;
     }
 
-    console.log('Cache miss, generating fresh processed players');
-    
-    // Create fresh cache
-    const success = await this.createProcessedPlayersCache();
-    if (!success) {
-      console.error('Failed to create processed players cache');
-      return null;
-    }
-
-    // Load the newly created cache
-    return await this.loadProcessedPlayersFromCache();
+    console.log('Cache miss — cannot generate without raw players; trigger a data refresh');
+    return null;
   }
 }

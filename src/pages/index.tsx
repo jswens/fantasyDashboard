@@ -4,9 +4,12 @@ import Header from '@/components/common/Header';
 import Loading from '@/components/common/Loading';
 import { ZeroCapWarning } from '@/components/common/ZeroCapWarning';
 import TeamCard from '@/components/team/TeamCard';
+import GoogleSignIn from '@/components/auth/GoogleSignIn';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { Team } from '@/lib/types';
 
 export default function Dashboard() {
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,16 +49,23 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
-      
-      if (forceRefresh) {
-        // Clear cache first
-        await fetch('/api/teams/cache', {
+
+      if (forceRefresh && user) {
+        const idToken = await user.getIdToken();
+        const refreshRes = await fetch('/api/refresh', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'refresh' })
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ force: true })
         });
+        if (!refreshRes.ok) {
+          const err = await refreshRes.json();
+          throw new Error(err.error || 'Refresh failed');
+        }
       }
-      
+
       const response = await fetch('/api/teams');
       
       if (!response.ok) {
@@ -89,18 +99,22 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
     const initializeDashboard = async () => {
       await fetchTeams();
       await fetchCacheInfo();
       await fetchLeagueStats();
     };
-    
     initializeDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return <Loading />;
+  }
+
+  if (!user) {
+    return <GoogleSignIn user={null} />;
   }
 
   if (error) {
@@ -142,11 +156,12 @@ export default function Dashboard() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-        <Header 
+        <Header
           title="Fantasy League Dashboard"
           subtitle={cacheInfo ? `Cache: ${cacheInfo.valid ? 'Valid' : 'Expired'} (${cacheInfo.ageMinutes}min old, ${cacheInfo.teamCount} teams)` : undefined}
           lastUpdated={lastUpdated || undefined}
-          onRefresh={() => fetchTeams(true)}
+          onRefresh={isAdmin ? () => fetchTeams(true) : undefined}
+          user={user}
         />      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
