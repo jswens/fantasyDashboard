@@ -7,17 +7,17 @@ runConfig:
   # cpu: 1
   # memoryMiB: 512
 
-# Environment variables and secrets.
-# env:
-  # Configure environment variables.
-  # See https://firebase.google.com/docs/app-hosting/configure#user-defined-environment
-  # - variable: MESSAGE
-  #   value: Hello world!
-  #   availability:
-  #     - BUILD
-  #     - RUNTIME
+env:
+  - variable: NEXT_PUBLIC_SLEEPER_LEAGUE_ID
+    value: 1119283875567620096
+    availability:
+      - BUILD
+      - RUNTIME
 
-  # Grant access to secrets in Cloud Secret Manager.
-  # See https://firebase.google.com/docs/app-hosting/configure#secret-parameters
-  # - variable: MY_SECRET
-  #   secret: mySecretRef
+  - variable: FIREBASE_PROJECT_ID
+    value: boom-tho-league-manager
+    availability:
+      - RUNTIME
+
+  # FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY are set via the
+  # Firebase Console > App Hosting > Environment variables (stored as secrets)
