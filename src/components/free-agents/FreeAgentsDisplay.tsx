@@ -1,5 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { User } from 'firebase/auth';
+import { usePlayerMarks } from '@/lib/hooks/usePlayerMarks';
+import PlayerMarkButtons from '@/components/player/PlayerMarkButtons';
+import { PlayerMarkType } from '@/lib/types/marks';
 
 interface FreeAgent {
   player_id: string;
@@ -35,6 +38,9 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
   const [tierText, setTierText] = useState('');
   const [uploadingTiers, setUploadingTiers] = useState(false);
   const [tierMessage, setTierMessage] = useState('');
+  const [markFilter, setMarkFilter] = useState<PlayerMarkType | 'all'>('all');
+
+  const { getMark, setMark } = usePlayerMarks(user);
 
   const positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
 
@@ -132,6 +138,12 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
       setUploadingTiers(false);
     }
   };
+
+  const displayedFreeAgents = useMemo(() => {
+    const list = freeAgents[selectedPosition] || [];
+    if (markFilter === 'all') return list;
+    return list.filter((player) => getMark(player.player_id) === markFilter);
+  }, [freeAgents, selectedPosition, markFilter, getMark]);
 
   if (loading) {
     return (
@@ -283,6 +295,30 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
           </nav>
         </div>
 
+        {/* Mark Filter */}
+        <div className="mt-4 flex items-center space-x-2">
+          <span className="text-sm font-medium text-gray-700">Filter by mark:</span>
+          {(['all', 'sleeper', 'target', 'avoid'] as const).map((option) => (
+            <button
+              key={option}
+              onClick={() => setMarkFilter(option)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                markFilter === option
+                  ? option === 'sleeper'
+                    ? 'bg-purple-600 text-white border-purple-600'
+                    : option === 'target'
+                      ? 'bg-green-600 text-white border-green-600'
+                      : option === 'avoid'
+                        ? 'bg-red-600 text-white border-red-600'
+                        : 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {option === 'all' ? 'All' : option.charAt(0).toUpperCase() + option.slice(1)}
+            </button>
+          ))}
+        </div>
+
         {/* Free Agents Table */}
         <div className="mt-6">
           <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -298,7 +334,7 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
               </p>
             </div>
             <ul className="divide-y divide-gray-200">
-              {freeAgents[selectedPosition]?.map((player, index) => (
+              {displayedFreeAgents.length > 0 ? displayedFreeAgents.map((player, index) => (
                 <li key={player.player_id}>
                   <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
                     <div className="flex items-center justify-between">
@@ -313,6 +349,13 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
                           <div className="text-sm text-gray-500">
                             {player.team ? `${player.team} • ${player.position}` : player.position}
                           </div>
+                        </div>
+                        <div className="ml-4">
+                          <PlayerMarkButtons
+                            playerId={player.player_id}
+                            currentMark={getMark(player.player_id)}
+                            onChange={(mark) => setMark(player.player_id, mark)}
+                          />
                         </div>
                       </div>
                       <div className="text-right">
@@ -342,9 +385,11 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
                     </div>
                   </div>
                 </li>
-              )) || (
+              )) : (
                 <li className="px-4 py-8 text-center text-gray-500">
-                  No free agents available for {selectedPosition}
+                  {markFilter === 'all'
+                    ? `No free agents available for ${selectedPosition}`
+                    : `No ${markFilter}-marked free agents for ${selectedPosition}`}
                 </li>
               )}
             </ul>
