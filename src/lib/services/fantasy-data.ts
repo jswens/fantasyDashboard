@@ -74,20 +74,10 @@ export class FantasyDataService {
 
   async refreshPlayerData(): Promise<boolean> {
     try {
-      console.log('Refreshing player data from Sleeper API...');
-      
-      // Fetch fresh player data from Sleeper
-      const allPlayers = await this.sleeperService.getAllPlayers();
-      
-      if (!allPlayers) {
-        console.error('Failed to fetch players from Sleeper API');
-        return false;
-      }
-
-      console.log(`Fetched ${Object.keys(allPlayers).length} players from Sleeper API`);
+      console.log('Refreshing player data from data/players.json...');
 
       // Create processed players cache with cap numbers
-      const processedCacheCreated = await this.dataProcessor.createProcessedPlayersCache(allPlayers);
+      const processedCacheCreated = await this.dataProcessor.createProcessedPlayersCache();
       if (!processedCacheCreated) {
         console.error('Failed to create processed players cache');
         return false;

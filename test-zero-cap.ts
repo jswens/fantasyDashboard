@@ -10,7 +10,7 @@ async function testZeroCapWarnings() {
   try {
     // Force create a new processed players cache
     console.log('🔧 Creating fresh processed players cache...');
-    const success = await dataProcessor.createProcessedPlayersCache({});
+    const success = await dataProcessor.createProcessedPlayersCache();
     
     if (success) {
       console.log('✅ Successfully created processed players cache!\n');

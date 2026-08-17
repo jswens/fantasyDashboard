@@ -60,19 +60,6 @@ export class SleeperService {
     }
   }
 
-  async getAllPlayers(): Promise<Record<string, SleeperPlayer> | null> {
-    try {
-      const response = await fetch(`${this.baseUrl}/players/nfl`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching all players:', error);
-      return null;
-    }
-  }
-
   async buildTeamData(processedPlayers: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }>): Promise<Team[]> {
     const users = await this.getUsers();
     const rosters = await this.getRosters();

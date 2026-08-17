@@ -54,6 +54,12 @@ export default function Header({
                 </svg>
                 Free Agents
               </Link>
+              <Link
+                href="/players"
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Players
+              </Link>
             </nav>
           </div>
 

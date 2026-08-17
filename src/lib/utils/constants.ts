@@ -1,8 +1,6 @@
 // Configuration constants from the Python capsheet application
 export const LEAGUE_ID = '1119283875567620096';
 
-// Sleeper league used by the draft tool (IDP + superflex)
-export const DRAFT_LEAGUE_ID = '1257419382598942720';
 export const MAX_SALARY_CAP = 170266667; // $170.27M
 export const GOOGLE_SHEET_ID = '1t6us1naBjjpU1k5Ew-ndCLjq7DkblbbBpXpArH6czUs';
 export const CAPNUMBERS_RANGE = 'capsheet!B2:G';

@@ -2,6 +2,9 @@
   "functions": {
     "src/pages/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "src/pages/api/refresh.ts": {
+      "maxDuration": 60
     }
   },
   "rewrites": [
