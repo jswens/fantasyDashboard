@@ -11,17 +11,17 @@ const MARK_CONFIG: Record<PlayerMarkType, { label: string; title: string; active
   sleeper: {
     label: 'S',
     title: 'Sleeper',
-    activeClass: 'bg-purple-600 text-white border-purple-600',
+    activeClass: 'bg-sleeper-purple text-sleeper-bg border-sleeper-purple',
   },
   target: {
     label: 'T',
     title: 'Target',
-    activeClass: 'bg-green-600 text-white border-green-600',
+    activeClass: 'bg-sleeper-teal text-sleeper-bg border-sleeper-teal',
   },
   avoid: {
     label: 'A',
     title: 'Avoid',
-    activeClass: 'bg-red-600 text-white border-red-600',
+    activeClass: 'bg-sleeper-red text-sleeper-bg border-sleeper-red',
   },
 };
 
@@ -60,7 +60,7 @@ export default function PlayerMarkButtons({
               index > 0 ? '-ml-px' : '',
               isActive
                 ? config.activeClass
-                : 'bg-white text-gray-500 border-gray-300 hover:bg-gray-50',
+                : 'bg-sleeper-surface text-sleeper-muted border-sleeper-border hover:bg-sleeper-surface-hover',
               disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
             ].join(' ')}
           >

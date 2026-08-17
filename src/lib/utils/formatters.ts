@@ -19,9 +19,9 @@ export function formatIntAsCurrency(value: number): string {
 export function getCapStatusColor(capUsed: number, maxCap: number): string {
   const percentage = (capUsed / maxCap) * 100;
   
-  if (percentage > 100) return 'bg-red-500';
-  if (percentage > 90) return 'bg-yellow-500';
-  return 'bg-green-500';
+  if (percentage > 100) return 'bg-sleeper-red';
+  if (percentage > 90) return 'bg-sleeper-yellow';
+  return 'bg-sleeper-teal';
 }
 
 export function getCapStatusText(capUsed: number, maxCap: number): string {

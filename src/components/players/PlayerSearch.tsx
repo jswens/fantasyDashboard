@@ -26,10 +26,10 @@ const CAP_SOURCE_LABELS: Record<PlayerSearchResult['capSource'], string> = {
 };
 
 const CAP_SOURCE_STYLES: Record<PlayerSearchResult['capSource'], string> = {
-  override: 'bg-purple-100 text-purple-800',
-  import: 'bg-green-100 text-green-800',
-  'legacy-csv': 'bg-gray-100 text-gray-700',
-  none: 'bg-red-100 text-red-700',
+  override: 'bg-sleeper-purple/15 text-sleeper-purple',
+  import: 'bg-sleeper-teal-muted text-sleeper-teal',
+  'legacy-csv': 'bg-sleeper-surface-hover text-sleeper-muted',
+  none: 'bg-sleeper-red-muted text-sleeper-red',
 };
 
 export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
@@ -126,11 +126,11 @@ export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
+    <div className="min-h-screen bg-sleeper-bg">
+      <div className="bg-sleeper-panel border-b border-sleeper-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Player Cap Search</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold text-sleeper-text">Player Cap Search</h1>
+          <p className="text-sm text-sleeper-muted mt-1">
             Search all players and verify effective salary cap numbers (override &gt; season import &gt; legacy CSV).
           </p>
         </div>
@@ -138,85 +138,90 @@ export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="mb-4">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by player name..."
-            className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
+          <div className="relative w-full max-w-md">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sleeper-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by player name..."
+              className="w-full pl-9 pr-3 py-2 bg-sleeper-surface border border-sleeper-border rounded-full text-sleeper-text placeholder-sleeper-faint focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
+            />
+          </div>
         </div>
 
         {error && (
-          <div className="rounded-md p-4 mb-4 bg-red-50 text-red-800">
+          <div className="rounded-md p-4 mb-4 bg-sleeper-red-muted border border-sleeper-red/30 text-sleeper-red">
             <p className="text-sm">{error}</p>
           </div>
         )}
 
         {saveMessage && (
-          <div className={`rounded-md p-4 mb-4 ${saveMessage.startsWith('Error') ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
+          <div className={`rounded-md p-4 mb-4 border ${saveMessage.startsWith('Error') ? 'bg-sleeper-red-muted text-sleeper-red border-sleeper-red/30' : 'bg-sleeper-teal-muted text-sleeper-teal border-sleeper-teal/30'}`}>
             <p className="text-sm">{saveMessage}</p>
           </div>
         )}
 
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <div className="px-4 py-5 sm:px-6 flex items-center justify-between">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
+        <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
+          <div className="px-4 py-5 sm:px-6 flex items-center justify-between border-b border-sleeper-border">
+            <h3 className="text-lg leading-6 font-medium text-sleeper-text">
               {query ? `Results for "${query}"` : 'All players'}
             </h3>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-sleeper-muted">
               {loading ? 'Searching…' : `${total} player${total === 1 ? '' : 's'}`}
             </span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-sleeper-border">
+              <thead className="bg-sleeper-panel">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team / Pos</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cap Hit</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Player</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Team / Pos</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Cap Hit</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Source</th>
                   {isAdmin && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Actions</th>
                   )}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-sleeper-border">
                 {results.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan={isAdmin ? 6 : 5} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={isAdmin ? 6 : 5} className="px-4 py-8 text-center text-sleeper-muted">
                       No players found
                     </td>
                   </tr>
                 ) : (
                   results.map(player => (
-                    <tr key={player.playerId} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <tr key={player.playerId} className="hover:bg-sleeper-surface-hover transition-colors">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-sleeper-text">
                         {player.fullName}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-sleeper-muted">
                         {player.team ? `${player.team} • ${player.position}` : player.position}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-sleeper-muted">
                         {player.isRostered ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sleeper-purple/15 text-sleeper-purple">
                             {player.rosterTeamName || 'Rostered'}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sleeper-teal-muted text-sleeper-teal">
                             Free Agent
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-sleeper-text">
                         {editingPlayerId === player.playerId ? (
                           <input
                             type="text"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
-                            className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            className="w-28 px-2 py-1 bg-sleeper-bg border border-sleeper-border rounded-md text-sm text-sleeper-text focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
                             disabled={savingPlayerId === player.playerId}
                           />
                         ) : (
@@ -235,14 +240,14 @@ export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
                               <button
                                 onClick={() => submitOverride(player.playerId)}
                                 disabled={savingPlayerId === player.playerId}
-                                className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+                                className="px-2 py-1 text-xs font-semibold text-sleeper-bg bg-sleeper-teal rounded-full hover:bg-sleeper-teal-dark disabled:opacity-50"
                               >
                                 {savingPlayerId === player.playerId ? 'Saving…' : 'Save'}
                               </button>
                               <button
                                 onClick={cancelEdit}
                                 disabled={savingPlayerId === player.playerId}
-                                className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
+                                className="px-2 py-1 text-xs font-medium text-sleeper-muted bg-sleeper-surface-hover rounded-full hover:text-sleeper-text"
                               >
                                 Cancel
                               </button>
@@ -250,7 +255,7 @@ export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
                           ) : (
                             <button
                               onClick={() => startEdit(player)}
-                              className="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                              className="px-2 py-1 text-xs font-medium text-sleeper-teal hover:text-sleeper-teal-dark"
                             >
                               Edit
                             </button>

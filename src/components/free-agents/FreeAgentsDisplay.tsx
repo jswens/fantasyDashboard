@@ -147,44 +147,44 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-sleeper-bg flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-4 border-sleeper-border border-t-sleeper-teal"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-sleeper-bg flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-600 text-xl mb-4">{error}</div>
+          <div className="text-sleeper-red text-xl mb-4">{error}</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-sleeper-bg">
       {/* Header */}
-      <div className="bg-white shadow">
+      <div className="bg-sleeper-panel border-b border-sleeper-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Top Free Agents</h1>
-              <p className="text-sm text-gray-600 mt-1">
+              <h1 className="text-3xl font-bold text-sleeper-text">Top Free Agents</h1>
+              <p className="text-sm text-sleeper-muted mt-1">
                 {totalFreeAgents} total free agents available
                 {uploadMessage && uploadMessage.includes('Successfully') && (
-                  <span className="ml-2 text-green-600 font-medium">• Sorted by projections</span>
+                  <span className="ml-2 text-sleeper-teal font-medium">• Sorted by projections</span>
                 )}
                 {tierMessage && tierMessage.includes('Successfully') && (
-                  <span className="ml-2 text-blue-600 font-medium">• Sorted by tiers</span>
+                  <span className="ml-2 text-sleeper-purple font-medium">• Sorted by tiers</span>
                 )}
               </p>
             </div>
             {isAdmin && (
-              <div className="flex space-x-4">
+              <div className="flex space-x-3">
                 {/* Upload Projections */}
-                <label className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center cursor-pointer">
+                <label className="bg-sleeper-teal text-sleeper-bg px-4 py-2 rounded-full font-semibold hover:bg-sleeper-teal-dark flex items-center cursor-pointer transition-colors">
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
@@ -204,7 +204,7 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
                 {/* Upload Tiers */}
                 <button
                   onClick={() => setShowTierInput(!showTierInput)}
-                  className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 flex items-center"
+                  className="bg-sleeper-purple text-sleeper-bg px-4 py-2 rounded-full font-semibold hover:brightness-110 flex items-center transition-all"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -218,7 +218,7 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
           {/* Upload Status Messages */}
           {uploadMessage && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-              <div className={`rounded-md p-4 ${uploadMessage.startsWith('Error') ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
+              <div className={`rounded-md p-4 border ${uploadMessage.startsWith('Error') ? 'bg-sleeper-red-muted text-sleeper-red border-sleeper-red/30' : 'bg-sleeper-teal-muted text-sleeper-teal border-sleeper-teal/30'}`}>
                 <p className="text-sm">{uploadMessage}</p>
               </div>
             </div>
@@ -226,7 +226,7 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
 
           {tierMessage && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-              <div className={`rounded-md p-4 ${tierMessage.startsWith('Error') ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-800'}`}>
+              <div className={`rounded-md p-4 border ${tierMessage.startsWith('Error') ? 'bg-sleeper-red-muted text-sleeper-red border-sleeper-red/30' : 'bg-sleeper-purple/10 text-sleeper-purple border-sleeper-purple/30'}`}>
                 <p className="text-sm">{tierMessage}</p>
               </div>
             </div>
@@ -235,22 +235,22 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
           {/* Tier Input Modal */}
           {showTierInput && (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Player Tiers</h3>
-                <p className="text-sm text-gray-600 mb-4">
+              <div className="bg-sleeper-surface border border-sleeper-border rounded-xl p-6">
+                <h3 className="text-lg font-medium text-sleeper-text mb-4">Upload Player Tiers</h3>
+                <p className="text-sm text-sleeper-muted mb-4">
                   Paste tier data in this format: &quot;Tier 1: Player1, Player2&quot; (one tier per line)
                 </p>
                 <textarea
                   value={tierText}
                   onChange={(e) => setTierText(e.target.value)}
                   placeholder="Tier 1: Brandon Aubrey, Cameron Dicker&#10;Tier 2: Tyler Loop, Wil Lutz, Ka'imi Fairbairn&#10;..."
-                  className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full h-32 px-3 py-2 bg-sleeper-bg border border-sleeper-border rounded-md text-sleeper-text placeholder-sleeper-faint focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
                   disabled={uploadingTiers}
                 />
                 <div className="mt-4 flex justify-end space-x-3">
                   <button
                     onClick={() => { setShowTierInput(false); setTierText(''); }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    className="px-4 py-2 text-sm font-medium text-sleeper-muted bg-sleeper-surface-hover rounded-full hover:text-sleeper-text"
                     disabled={uploadingTiers}
                   >
                     Cancel
@@ -258,7 +258,7 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
                   <button
                     onClick={handleTierUpload}
                     disabled={uploadingTiers || !tierText.trim()}
-                    className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-semibold text-sleeper-bg bg-sleeper-purple rounded-full hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {uploadingTiers ? 'Uploading...' : 'Upload Tiers'}
                   </button>
@@ -271,47 +271,46 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
 
       {/* Position Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            {positions.map((position) => {
-              const count = freeAgents[position]?.length || 0;
-              return (
-                <button
-                  key={position}
-                  onClick={() => setSelectedPosition(position)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    selectedPosition === position
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {position}
-                  <span className="ml-2 bg-gray-100 text-gray-900 py-0.5 px-2.5 rounded-full text-xs">
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+        <nav className="flex flex-wrap gap-2">
+          {positions.map((position) => {
+            const count = freeAgents[position]?.length || 0;
+            const isActive = selectedPosition === position;
+            return (
+              <button
+                key={position}
+                onClick={() => setSelectedPosition(position)}
+                className={`py-2 px-4 rounded-full font-semibold text-sm border transition-colors ${
+                  isActive
+                    ? 'bg-sleeper-teal text-sleeper-bg border-sleeper-teal'
+                    : 'bg-transparent text-sleeper-muted border-sleeper-border hover:text-sleeper-text hover:border-sleeper-teal/50'
+                }`}
+              >
+                {position}
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${isActive ? 'bg-sleeper-bg/20 text-sleeper-bg' : 'bg-sleeper-surface-hover text-sleeper-muted'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
         {/* Mark Filter */}
         <div className="mt-4 flex items-center space-x-2">
-          <span className="text-sm font-medium text-gray-700">Filter by mark:</span>
+          <span className="text-sm font-medium text-sleeper-muted">Filter by mark:</span>
           {(['all', 'sleeper', 'target', 'avoid'] as const).map((option) => (
             <button
               key={option}
               onClick={() => setMarkFilter(option)}
-              className={`px-3 py-1 rounded-full text-xs font-medium border ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
                 markFilter === option
                   ? option === 'sleeper'
-                    ? 'bg-purple-600 text-white border-purple-600'
+                    ? 'bg-sleeper-purple text-sleeper-bg border-sleeper-purple'
                     : option === 'target'
-                      ? 'bg-green-600 text-white border-green-600'
+                      ? 'bg-sleeper-teal text-sleeper-bg border-sleeper-teal'
                       : option === 'avoid'
-                        ? 'bg-red-600 text-white border-red-600'
-                        : 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-sleeper-red text-sleeper-bg border-sleeper-red'
+                        : 'bg-sleeper-text text-sleeper-bg border-sleeper-text'
+                  : 'bg-transparent text-sleeper-muted border-sleeper-border hover:text-sleeper-text hover:border-sleeper-teal/50'
               }`}
             >
               {option === 'all' ? 'All' : option.charAt(0).toUpperCase() + option.slice(1)}
@@ -321,32 +320,32 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
 
         {/* Free Agents Table */}
         <div className="mt-6">
-          <div className="bg-white shadow overflow-hidden sm:rounded-md">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
+          <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
+            <div className="px-4 py-5 sm:px-6 border-b border-sleeper-border">
+              <h3 className="text-lg leading-6 font-medium text-sleeper-text">
                 Top 10 {selectedPosition} Free Agents
               </h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500">
+              <p className="mt-1 max-w-2xl text-sm text-sleeper-muted">
                 {tierMessage && tierMessage.includes('Successfully') ?
                   'Ranked by tiers with salary cap values' :
                   uploadMessage && uploadMessage.includes('Successfully') ?
                     'Ranked by projections with salary cap values' : 'Ranked by salary cap value'}
               </p>
             </div>
-            <ul className="divide-y divide-gray-200">
+            <ul className="divide-y divide-sleeper-border">
               {displayedFreeAgents.length > 0 ? displayedFreeAgents.map((player, index) => (
                 <li key={player.player_id}>
-                  <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
+                  <div className="px-4 py-4 sm:px-6 hover:bg-sleeper-surface-hover transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-sm font-medium text-blue-600">#{index + 1}</span>
+                          <div className="h-10 w-10 rounded-full bg-sleeper-teal-muted border border-sleeper-teal/30 flex items-center justify-center">
+                            <span className="text-sm font-medium text-sleeper-teal">#{index + 1}</span>
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{player.full_name}</div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm font-medium text-sleeper-text">{player.full_name}</div>
+                          <div className="text-sm text-sleeper-muted">
                             {player.team ? `${player.team} • ${player.position}` : player.position}
                           </div>
                         </div>
@@ -361,18 +360,18 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
                       <div className="text-right">
                         {player.tier !== undefined ? (
                           <>
-                            <div className="text-sm font-medium text-purple-600">Tier {player.tier}</div>
-                            <div className="text-sm font-medium text-gray-900">{player.cap_value_formatted}</div>
+                            <div className="text-sm font-medium text-sleeper-purple">Tier {player.tier}</div>
+                            <div className="text-sm font-medium text-sleeper-text">{player.cap_value_formatted}</div>
                           </>
                         ) : player.projection !== undefined ? (
                           <>
-                            <div className="text-sm font-medium text-green-600">{player.projection.toFixed(1)} pts</div>
-                            <div className="text-sm font-medium text-gray-900">{player.cap_value_formatted}</div>
+                            <div className="text-sm font-medium text-sleeper-teal">{player.projection.toFixed(1)} pts</div>
+                            <div className="text-sm font-medium text-sleeper-text">{player.cap_value_formatted}</div>
                           </>
                         ) : (
-                          <div className="text-sm font-medium text-gray-900">{player.cap_value_formatted}</div>
+                          <div className="text-sm font-medium text-sleeper-text">{player.cap_value_formatted}</div>
                         )}
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-sleeper-faint">
                           {player.tier !== undefined ? (
                             <>Tier {player.tier} • Rank #{player.ranking}</>
                           ) : player.projection !== undefined ? (
@@ -386,7 +385,7 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
                   </div>
                 </li>
               )) : (
-                <li className="px-4 py-8 text-center text-gray-500">
+                <li className="px-4 py-8 text-center text-sleeper-muted">
                   {markFilter === 'all'
                     ? `No free agents available for ${selectedPosition}`
                     : `No ${markFilter}-marked free agents for ${selectedPosition}`}
@@ -398,36 +397,36 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
 
         {/* Stats Summary */}
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-6 w-6 text-sleeper-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.916-.75M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.916-.75M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Total Free Agents</dt>
-                    <dd className="text-lg font-medium text-gray-900">{totalFreeAgents.toLocaleString()}</dd>
+                    <dt className="text-sm font-medium text-sleeper-muted truncate">Total Free Agents</dt>
+                    <dd className="text-lg font-medium text-sleeper-text">{totalFreeAgents.toLocaleString()}</dd>
                   </dl>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-6 w-6 text-sleeper-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Positions Available</dt>
-                    <dd className="text-lg font-medium text-gray-900">
+                    <dt className="text-sm font-medium text-sleeper-muted truncate">Positions Available</dt>
+                    <dd className="text-lg font-medium text-sleeper-text">
                       {positions.filter(pos => (freeAgents[pos]?.length || 0) > 0).length}
                     </dd>
                   </dl>
@@ -436,18 +435,18 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-6 w-6 text-sleeper-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Highest Cap Value</dt>
-                    <dd className="text-lg font-medium text-gray-900">
+                    <dt className="text-sm font-medium text-sleeper-muted truncate">Highest Cap Value</dt>
+                    <dd className="text-lg font-medium text-sleeper-text">
                       {freeAgents[selectedPosition]?.[0]?.cap_value_formatted || 'N/A'}
                     </dd>
                   </dl>

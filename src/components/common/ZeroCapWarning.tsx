@@ -8,7 +8,7 @@ export const ZeroCapWarning: React.FC<ZeroCapWarningProps> = ({
   className = '' 
 }) => {
   return (
-    <div className={`flex items-center space-x-2 text-amber-600 ${className}`}>
+    <div className={`flex items-center space-x-2 text-sleeper-yellow ${className}`}>
       <svg 
         className="w-4 h-4 flex-shrink-0" 
         fill="currentColor" 

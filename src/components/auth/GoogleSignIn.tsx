@@ -39,13 +39,13 @@ export default function GoogleSignIn({ user }: GoogleSignInProps) {
           <img
             src={user.photoURL}
             alt={user.displayName || 'User'}
-            className="w-8 h-8 rounded-full"
+            className="w-8 h-8 rounded-full border border-sleeper-border"
           />
         )}
-        <span className="text-sm text-gray-700">{user.displayName || user.email}</span>
+        <span className="text-sm text-sleeper-text">{user.displayName || user.email}</span>
         <button
           onClick={handleSignOut}
-          className="text-sm text-gray-500 hover:text-gray-700 underline"
+          className="text-sm text-sleeper-muted hover:text-sleeper-text underline"
         >
           Sign out
         </button>
@@ -54,32 +54,32 @@ export default function GoogleSignIn({ user }: GoogleSignInProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-sleeper-bg py-12 px-4">
       <div className="max-w-md w-full space-y-8 text-center">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
-            <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-sleeper-teal-muted border border-sleeper-teal/30">
+            <svg className="h-6 w-6 text-sleeper-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-3xl font-extrabold text-sleeper-text">
             Fantasy League Dashboard
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-sleeper-muted">
             Sign in with Google to access the dashboard
           </p>
         </div>
 
         {error && (
-          <div className="rounded-md bg-red-50 p-4">
-            <p className="text-sm text-red-800">{error}</p>
+          <div className="rounded-md bg-sleeper-red-muted p-4 border border-sleeper-red/30">
+            <p className="text-sm text-sleeper-red">{error}</p>
           </div>
         )}
 
         <button
           onClick={handleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center px-4 py-3 border border-sleeper-border rounded-full shadow-sm bg-sleeper-surface text-sm font-semibold text-sleeper-text hover:bg-sleeper-surface-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-sleeper-bg focus:ring-sleeper-teal disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

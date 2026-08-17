@@ -17,22 +17,22 @@ interface CapByPositionChartProps {
 
 // Position color mapping for consistent visual representation
 const POSITION_COLORS: Record<string, string> = {
-  QB: '#3B82F6',    // Blue
-  RB: '#10B981',    // Green
-  WR: '#F59E0B',    // Amber
-  TE: '#8B5CF6',    // Purple
-  K: '#EF4444',     // Red
-  DEF: '#6B7280',   // Gray
-  DB: '#06B6D4',    // Cyan
+  QB: '#26D9AE',    // Teal (brand)
+  RB: '#5EEAD4',    // Light teal
+  WR: '#F5A524',    // Amber
+  TE: '#A78BFA',    // Purple
+  K: '#F0475F',     // Red
+  DEF: '#8B90A3',   // Muted gray
+  DB: '#38BDF8',    // Sky
   DL: '#84CC16',    // Lime
-  LB: '#F97316',    // Orange
-  FLEX: '#EC4899',  // Pink
-  BN: '#64748B',    // Slate
+  LB: '#FB923C',    // Orange
+  FLEX: '#F472B6',  // Pink
+  BN: '#5B5F71',    // Faint slate
   IR: '#71717A',    // Zinc
 };
 
 // Default color for positions not in the mapping
-const DEFAULT_COLOR = '#9CA3AF';
+const DEFAULT_COLOR = '#8B90A3';
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -46,12 +46,12 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload }) => {
   const data = payload[0].payload as PositionCapData;
   
   return (
-    <div className="bg-white p-3 border rounded-lg shadow-lg">
-      <p className="font-medium text-gray-900">{data.position}</p>
-      <p className="text-sm text-gray-600">
+    <div className="bg-sleeper-surface p-3 border border-sleeper-border rounded-lg shadow-lg">
+      <p className="font-medium text-sleeper-text">{data.position}</p>
+      <p className="text-sm text-sleeper-muted">
         {formatIntAsCurrency(data.capValue)} ({data.percentage.toFixed(1)}%)
       </p>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-sleeper-faint">
         {data.playerCount} {data.playerCount === 1 ? 'player' : 'players'}
       </p>
     </div>
@@ -87,11 +87,11 @@ export default function CapByPositionChart({ players, totalCapUsed }: CapByPosit
 
   if (positionData.length === 0) {
     return (
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Cap Space by Position</h3>
-        <div className="flex items-center justify-center h-64 text-gray-500">
+      <div className="bg-sleeper-surface border border-sleeper-border rounded-xl p-6">
+        <h3 className="text-lg font-medium text-sleeper-text mb-4">Cap Space by Position</h3>
+        <div className="flex items-center justify-center h-64 text-sleeper-muted">
           <div className="text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="mx-auto h-12 w-12 text-sleeper-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <p className="mt-2 text-sm">No position data available</p>
@@ -102,9 +102,9 @@ export default function CapByPositionChart({ players, totalCapUsed }: CapByPosit
   }
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Cap Space by Position</h3>
-      
+    <div className="bg-sleeper-surface border border-sleeper-border rounded-xl p-6">
+      <h3 className="text-lg font-medium text-sleeper-text mb-4">Cap Space by Position</h3>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pie Chart */}
         <div className="h-64">
@@ -137,25 +137,25 @@ export default function CapByPositionChart({ players, totalCapUsed }: CapByPosit
 
         {/* Position Breakdown Table */}
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Position Breakdown</h4>
+          <h4 className="text-sm font-medium text-sleeper-text mb-3">Position Breakdown</h4>
           <div className="space-y-1 max-h-52 overflow-y-auto">
             {positionData.map((item) => (
               <div key={item.position} className="flex items-center justify-between py-1">
                 <div className="flex items-center space-x-2">
-                  <div 
+                  <div
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: POSITION_COLORS[item.position] || DEFAULT_COLOR }}
                   />
-                  <span className="text-sm font-medium text-gray-700">{item.position}</span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-sm font-medium text-sleeper-text">{item.position}</span>
+                  <span className="text-xs text-sleeper-faint">
                     ({item.playerCount} {item.playerCount === 1 ? 'player' : 'players'})
                   </span>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-sm font-medium text-sleeper-text">
                     {formatIntAsCurrency(item.capValue)}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-sleeper-faint">
                     {item.percentage.toFixed(1)}%
                   </div>
                 </div>
@@ -166,15 +166,15 @@ export default function CapByPositionChart({ players, totalCapUsed }: CapByPosit
       </div>
 
       {/* Summary */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
+      <div className="mt-4 pt-4 border-t border-sleeper-border">
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-gray-500">Total Positions:</span>
-            <span className="ml-2 font-medium text-gray-900">{positionData.length}</span>
+            <span className="text-sleeper-muted">Total Positions:</span>
+            <span className="ml-2 font-medium text-sleeper-text">{positionData.length}</span>
           </div>
           <div>
-            <span className="text-gray-500">Total Cap Used:</span>
-            <span className="ml-2 font-medium text-gray-900">{formatIntAsCurrency(totalCapUsed)}</span>
+            <span className="text-sleeper-muted">Total Cap Used:</span>
+            <span className="ml-2 font-medium text-sleeper-text">{formatIntAsCurrency(totalCapUsed)}</span>
           </div>
         </div>
       </div>
