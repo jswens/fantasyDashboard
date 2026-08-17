@@ -9,7 +9,7 @@ runConfig:
 
 env:
   - variable: NEXT_PUBLIC_SLEEPER_LEAGUE_ID
-    value: 1119283875567620096
+    value: 1389239115878244352
     availability:
       - BUILD
       - RUNTIME
