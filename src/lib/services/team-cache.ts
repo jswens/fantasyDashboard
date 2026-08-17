@@ -3,7 +3,6 @@ import { adminDb } from '@/lib/firebase-admin';
 import { Team } from '@/lib/types';
 
 const CACHE_DOC = 'cache/teams';
-const CACHE_DURATION_MS = 60 * 60 * 1000; // 60 minutes
 
 export class TeamCacheService {
   private cacheDuration: number;

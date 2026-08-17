@@ -1,12 +1,3 @@
-// Currency conversion functions from the Python application
-export function convertCurrencyToInt(currencyStr: string | null): number {
-  if (currencyStr === null || currencyStr === undefined) {
-    return 0;
-  }
-  const cleanStr = currencyStr.replace(/[$,]/g, '');
-  return parseInt(cleanStr, 10) || 0;
-}
-
 export function formatIntAsCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',

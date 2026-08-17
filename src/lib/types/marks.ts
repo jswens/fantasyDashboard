@@ -22,14 +22,6 @@ export interface GetMarksResponse {
   season?: string;
 }
 
-export interface SetMarkRequestBody {
-  playerId: string;
-  /** mark type to set, or null/omitted to clear the mark */
-  mark: PlayerMarkType | null;
-  note?: string;
-  season?: string;
-}
-
 export interface SetMarkResponse {
   success: boolean;
   message: string;

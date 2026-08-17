@@ -40,7 +40,3 @@ export interface CapNumberRow {
   abbreviation: string;
   bye_week: string;
 }
-
-export interface CapNumbersData {
-  values: CapNumberRow[];
-}
