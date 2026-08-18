@@ -1,6 +1,6 @@
 // POST /api/admin/import-cap-numbers
 //
-// Admin-only. Imports NFL cap-hit numbers for a season and writes them to
+// Admin or commissioner. Imports NFL cap-hit numbers for a season and writes them to
 // Firestore at capNumbers/{season}, replacing the static data/capsheet.csv
 // as the source of truth for that season going forward (capsheet.csv remains
 // a fallback for seasons that have never been imported — see
@@ -32,7 +32,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import formidable from 'formidable';
 import fs from 'fs';
-import { requireAuth, isAdmin } from '@/lib/auth/firebase-auth';
+import { requireAuth, isAdmin, isCommissioner } from '@/lib/auth/firebase-auth';
 import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { normalizePlayerName, getCurrentCapSeason } from '@/lib/services/cap-numbers';
@@ -152,8 +152,12 @@ export default async function handler(
   if (!decoded) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
-  if (!(await isAdmin(decoded.uid))) {
-    return res.status(403).json({ success: false, message: 'Forbidden - admin access required' });
+  const [adminStatus, commissionerStatus] = await Promise.all([
+    isAdmin(decoded.uid),
+    isCommissioner(decoded.uid),
+  ]);
+  if (!adminStatus && !commissionerStatus) {
+    return res.status(403).json({ success: false, message: 'Forbidden - admin or commissioner access required' });
   }
 
   try {

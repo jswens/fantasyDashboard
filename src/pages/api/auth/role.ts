@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { requireAuth, isAdmin } from '@/lib/auth/firebase-auth';
+import { requireAuth, isAdmin, isCommissioner } from '@/lib/auth/firebase-auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -8,9 +8,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const decoded = await requireAuth(req);
   if (!decoded) {
-    return res.status(401).json({ isAdmin: false });
+    return res.status(401).json({ isAdmin: false, isCommissioner: false });
   }
 
-  const adminStatus = await isAdmin(decoded.uid);
-  return res.status(200).json({ isAdmin: adminStatus, uid: decoded.uid });
+  const [adminStatus, commissionerStatus] = await Promise.all([
+    isAdmin(decoded.uid),
+    isCommissioner(decoded.uid),
+  ]);
+  return res.status(200).json({ isAdmin: adminStatus, isCommissioner: commissionerStatus, uid: decoded.uid });
 }

@@ -1,6 +1,8 @@
 // POST /api/admin/cap-override
 //
-// Admin-only. Sets a single player's effective cap number for a season, stored
+// Commissioner-only (see isCommissioner in firebase-auth.ts — a narrower role
+// than admin, set manually per-uid in the Firestore "commissioners" collection).
+// Sets a single player's effective cap number for a season, stored
 // as an override layer at capNumbers/{season}/overrides/{playerId} so that a
 // future re-import (POST /api/admin/import-cap-numbers) never silently wipes
 // manual fixes — see src/lib/services/cap-numbers.ts for how overrides are
@@ -12,7 +14,7 @@
 // value) on the override document itself.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { requireAuth, isAdmin } from '@/lib/auth/firebase-auth';
+import { requireAuth, isCommissioner } from '@/lib/auth/firebase-auth';
 import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { getCurrentCapSeason } from '@/lib/services/cap-numbers';
@@ -30,8 +32,8 @@ export default async function handler(
   if (!decoded) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
-  if (!(await isAdmin(decoded.uid))) {
-    return res.status(403).json({ success: false, message: 'Forbidden - admin access required' });
+  if (!(await isCommissioner(decoded.uid))) {
+    return res.status(403).json({ success: false, message: 'Forbidden - commissioner access required' });
   }
 
   try {
@@ -68,7 +70,7 @@ export default async function handler(
     const newDoc: Omit<CapOverrideDocument, 'history'> & { history: unknown[] } = {
       playerId,
       capHit,
-      reason,
+      ...(reason ? { reason } : {}),
       updatedBy: decoded.uid,
       updatedAt: FieldValue.serverTimestamp(),
       previousValue,

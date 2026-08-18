@@ -5,12 +5,14 @@ import { auth } from '@/lib/firebase';
 interface AuthState {
   user: User | null;
   isAdmin: boolean;
+  isCommissioner: boolean;
   loading: boolean;
 }
 
 export function useAuth(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCommissioner, setIsCommissioner] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,14 +28,18 @@ export function useAuth(): AuthState {
           if (res.ok) {
             const data = await res.json();
             setIsAdmin(data.isAdmin === true);
+            setIsCommissioner(data.isCommissioner === true);
           } else {
             setIsAdmin(false);
+            setIsCommissioner(false);
           }
         } catch {
           setIsAdmin(false);
+          setIsCommissioner(false);
         }
       } else {
         setIsAdmin(false);
+        setIsCommissioner(false);
       }
 
       setLoading(false);
@@ -42,5 +48,5 @@ export function useAuth(): AuthState {
     return unsubscribe;
   }, []);
 
-  return { user, isAdmin, loading };
+  return { user, isAdmin, isCommissioner, loading };
 }

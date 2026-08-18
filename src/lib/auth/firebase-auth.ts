@@ -19,6 +19,18 @@ export async function isAdmin(uid: string): Promise<boolean> {
   }
 }
 
+// Commissioners are a narrower role than admin: set manually in Firestore
+// (collection "commissioners", one doc per uid) for the specific logins
+// trusted to mutate locked-in cap numbers.
+export async function isCommissioner(uid: string): Promise<boolean> {
+  try {
+    const doc = await adminDb.collection('commissioners').doc(uid).get();
+    return doc.exists;
+  } catch {
+    return false;
+  }
+}
+
 export async function requireAuth(req: NextApiRequest): Promise<DecodedIdToken | null> {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
@@ -30,4 +42,10 @@ export async function requireAdmin(req: NextApiRequest): Promise<boolean> {
   const decoded = await requireAuth(req);
   if (!decoded) return false;
   return isAdmin(decoded.uid);
+}
+
+export async function requireCommissioner(req: NextApiRequest): Promise<boolean> {
+  const decoded = await requireAuth(req);
+  if (!decoded) return false;
+  return isCommissioner(decoded.uid);
 }

@@ -15,7 +15,7 @@ interface PlayerSearchResult {
 
 interface PlayerSearchProps {
   user: User;
-  isAdmin: boolean;
+  isCommissioner: boolean;
 }
 
 const CAP_SOURCE_LABELS: Record<PlayerSearchResult['capSource'], string> = {
@@ -32,7 +32,7 @@ const CAP_SOURCE_STYLES: Record<PlayerSearchResult['capSource'], string> = {
   none: 'bg-sleeper-red-muted text-sleeper-red',
 };
 
-export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
+export default function PlayerSearch({ user, isCommissioner }: PlayerSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlayerSearchResult[]>([]);
   const [total, setTotal] = useState(0);
@@ -183,7 +183,7 @@ export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
                   <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Cap Hit</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Source</th>
-                  {isAdmin && (
+                  {isCommissioner && (
                     <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Actions</th>
                   )}
                 </tr>
@@ -191,7 +191,7 @@ export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
               <tbody className="divide-y divide-sleeper-border">
                 {results.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan={isAdmin ? 6 : 5} className="px-4 py-8 text-center text-sleeper-muted">
+                    <td colSpan={isCommissioner ? 6 : 5} className="px-4 py-8 text-center text-sleeper-muted">
                       No players found
                     </td>
                   </tr>
@@ -233,7 +233,7 @@ export default function PlayerSearch({ user, isAdmin }: PlayerSearchProps) {
                           {CAP_SOURCE_LABELS[player.capSource]}
                         </span>
                       </td>
-                      {isAdmin && (
+                      {isCommissioner && (
                         <td className="px-4 py-3 whitespace-nowrap text-sm">
                           {editingPlayerId === player.playerId ? (
                             <div className="flex space-x-2">

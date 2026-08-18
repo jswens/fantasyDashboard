@@ -4,7 +4,7 @@ import PlayerSearch from '@/components/players/PlayerSearch';
 import Loading from '@/components/common/Loading';
 
 export default function PlayersPage() {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isCommissioner, loading } = useAuth();
 
   if (loading) {
     return <Loading />;
@@ -14,5 +14,5 @@ export default function PlayersPage() {
     return <GoogleSignIn user={null} />;
   }
 
-  return <PlayerSearch user={user} isAdmin={isAdmin} />;
+  return <PlayerSearch user={user} isCommissioner={isCommissioner} />;
 }
