@@ -35,18 +35,22 @@ export class FantasyDataService {
       }
 
       console.log('Cache miss, generating fresh team data');
-      
+
       // First, process players with cap numbers from local files
       const processedPlayers = await this.dataProcessor.processPlayersWithCapNumbers();
-      
+
       if (!processedPlayers) {
         console.error('Failed to process players with cap numbers');
         return [];
       }
 
-      // Then build team data using Sleeper API
-      const teams = await this.sleeperService.buildTeamData(processedPlayers);
-      
+      // While the league is pre_draft, the rosters endpoint still reflects last
+      // season's teams, so build from draft picks (keepers + live picks) instead.
+      const league = await this.sleeperService.getLeague();
+      const teams = league?.status === 'pre_draft' && league.draft_id
+        ? await this.sleeperService.buildTeamDataFromDraft(processedPlayers, league.draft_id)
+        : await this.sleeperService.buildTeamData(processedPlayers);
+
       // Save to cache for future requests
       if (teams.length > 0) {
         await this.teamCache.saveTeamsToCache(teams);

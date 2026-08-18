@@ -29,6 +29,14 @@ export interface SleeperPlayer {
   active: boolean;
 }
 
+export interface SleeperDraftPick {
+  player_id: string;
+  roster_id: number;
+  round: number;
+  pick_no: number;
+  is_keeper: boolean | null;
+}
+
 // Cap numbers data structure
 export interface CapNumberRow {
   lookup_key: string;

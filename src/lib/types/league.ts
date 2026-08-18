@@ -8,4 +8,5 @@ export interface League {
   status: string;
   sport: string;
   season_type: string;
+  draft_id: string | null;
 }
