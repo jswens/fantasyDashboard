@@ -1,5 +1,12 @@
 import { Team, Player, League } from '@/lib/types';
 import { SleeperUser, SleeperRoster, SleeperPlayer, SleeperDraftPick } from '@/lib/types/sleeper';
+import { getTeamAvatarUrl } from '@/lib/utils/images';
+
+function resolveAvatarUrl(user: SleeperUser): string | null {
+  if (user.metadata?.avatar) return user.metadata.avatar;
+  if (user.avatar) return getTeamAvatarUrl(user.avatar);
+  return null;
+}
 
 export class SleeperService {
   private baseUrl = 'https://api.sleeper.app/v1';
@@ -125,6 +132,7 @@ export class SleeperService {
         owner_id: roster.owner_id,
         team_name: user.metadata?.team_name || user.display_name || 'Unnamed Team',
         owner_name: user.display_name,
+        avatar_url: resolveAvatarUrl(user),
         wins: roster.settings?.wins || 0,
         losses: roster.settings?.losses || 0,
         ties: roster.settings?.ties || 0,
@@ -206,6 +214,7 @@ export class SleeperService {
         owner_id: roster.owner_id,
         team_name: user.metadata?.team_name || user.display_name || 'Unnamed Team',
         owner_name: user.display_name,
+        avatar_url: resolveAvatarUrl(user),
         wins: 0,
         losses: 0,
         ties: 0,

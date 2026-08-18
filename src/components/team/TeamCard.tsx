@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Team } from '@/lib/types';
 import { formatIntAsCurrency, getCapStatusColor, getCapStatusText } from '@/lib/utils/formatters';
+import TeamLogo from '@/components/common/TeamLogo';
 
 interface TeamCardProps {
   team: Team;
@@ -17,11 +18,14 @@ export default function TeamCard({ team, onClick }: TeamCardProps) {
       onClick={onClick}
     >
       <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-sleeper-text">{team.team_name}</h3>
-          <p className="text-sm text-sleeper-muted">{team.owner_name}</p>
+        <div className="flex items-center space-x-3 min-w-0">
+          <TeamLogo avatarUrl={team.avatar_url} teamName={team.team_name} size="sm" />
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-sleeper-text truncate">{team.team_name}</h3>
+            <p className="text-sm text-sleeper-muted truncate">{team.owner_name}</p>
+          </div>
         </div>
-        <div className="text-right">
+        <div className="text-right flex-shrink-0">
           <p className="text-sm font-medium text-sleeper-text">
             {team.roster_size} players
           </p>

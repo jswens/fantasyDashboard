@@ -6,6 +6,8 @@ import Header from '@/components/common/Header';
 import Loading from '@/components/common/Loading';
 import { ZeroCapWarning } from '@/components/common/ZeroCapWarning';
 import CapByPositionChart from '@/components/team/CapByPositionChart';
+import PlayerAvatar from '@/components/common/PlayerAvatar';
+import TeamLogo from '@/components/common/TeamLogo';
 import { Team } from '@/lib/types';
 import { formatIntAsCurrency } from '@/lib/utils/formatters';
 
@@ -116,6 +118,17 @@ export default function TeamDetail() {
             </svg>
             Back to Dashboard
           </Link>
+        </div>
+
+        {/* Team Identity */}
+        <div className="flex items-center space-x-4 mb-8">
+          <TeamLogo avatarUrl={team.avatar_url} teamName={team.team_name} size="lg" />
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold text-sleeper-text truncate">{team.team_name}</h2>
+            <p className="text-sm text-sleeper-muted truncate">
+              {team.owner_name} • {team.wins}-{team.losses}-{team.ties}
+            </p>
+          </div>
         </div>
 
         {/* Team Summary Cards */}
@@ -250,20 +263,14 @@ export default function TeamDetail() {
             </div>
           ) : (
             <div className="divide-y divide-sleeper-border">
-              {sortedPlayers.map((player, index) => {
+              {sortedPlayers.map((player) => {
                 const capPercentage = team.salary_cap > 0 ? (player.cap_value / team.salary_cap) * 100 : 0;
 
                 return (
                   <div key={player.player_id} className="px-6 py-4 hover:bg-sleeper-surface-hover transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
-                        <div className="flex-shrink-0">
-                          <div className="w-10 h-10 bg-sleeper-bg border border-sleeper-border rounded-full flex items-center justify-center">
-                            <span className="text-sm font-medium text-sleeper-muted">
-                              #{index + 1}
-                            </span>
-                          </div>
-                        </div>
+                        <PlayerAvatar playerId={player.player_id} fullName={player.full_name} size="md" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-sleeper-text">
                             {player.full_name}

@@ -5,6 +5,7 @@ export interface Team {
   owner_id: string;
   team_name: string;
   owner_name: string;
+  avatar_url: string | null;
   wins: number;
   losses: number;
   ties: number;
