@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Team } from '@/lib/types';
 
 export default function Dashboard() {
-  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { user, isCommissioner, loading: authLoading } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,26 +45,10 @@ export default function Dashboard() {
     }
   };
 
-  const fetchTeams = async (forceRefresh = false) => {
+  const fetchTeams = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      if (forceRefresh && user) {
-        const idToken = await user.getIdToken();
-        const refreshRes = await fetch('/api/refresh', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({ force: true })
-        });
-        if (!refreshRes.ok) {
-          const err = await refreshRes.json();
-          throw new Error(err.error || 'Refresh failed');
-        }
-      }
 
       const response = await fetch('/api/teams');
       
@@ -160,8 +144,8 @@ export default function Dashboard() {
           title="Fantasy League Dashboard"
           subtitle={cacheInfo ? `Cache: ${cacheInfo.valid ? 'Valid' : 'Expired'} (${cacheInfo.ageMinutes}min old, ${cacheInfo.teamCount} teams)` : undefined}
           lastUpdated={lastUpdated || undefined}
-          onRefresh={isAdmin ? () => fetchTeams(true) : undefined}
           user={user}
+          isCommissioner={isCommissioner}
         />      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

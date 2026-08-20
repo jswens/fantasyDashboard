@@ -6,7 +6,7 @@ import FreeAgentsDisplay from '@/components/free-agents/FreeAgentsDisplay';
 import Loading from '@/components/common/Loading';
 
 export default function FreeAgentsPage() {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, isCommissioner, loading } = useAuth();
 
   if (loading) {
     return <Loading />;
@@ -21,7 +21,7 @@ export default function FreeAgentsPage() {
       <Head>
         <title>Free Agents - Fantasy League Dashboard</title>
       </Head>
-      <Header title="Free Agents" user={user} />
+      <Header title="Free Agents" user={user} isCommissioner={isCommissioner} />
       <FreeAgentsDisplay user={user} isAdmin={isAdmin} />
     </>
   );

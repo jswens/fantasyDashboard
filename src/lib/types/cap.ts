@@ -102,6 +102,42 @@ export interface EffectiveCapNumber {
   source: CapSource;
 }
 
+/** Audit trail entry stored alongside the league cap doc. */
+export interface LeagueCapAuditEntry {
+  uid: string;
+  changedAt: unknown; // Firestore server timestamp
+  previousValue: number | null;
+  newValue: number;
+}
+
+/** Document shape at leagueSettings/{season} — the league-wide salary cap. */
+export interface LeagueCapDocument {
+  season: string;
+  salaryCap: number;
+  updatedBy: string;
+  updatedAt: unknown; // Firestore server timestamp
+  previousValue: number | null;
+  history: LeagueCapAuditEntry[];
+}
+
+export interface LeagueCapRequest {
+  season?: string;
+  salaryCap: number;
+}
+
+export interface LeagueCapInfo {
+  season: string;
+  salaryCap: number;
+  /** True when no commissioner has set a cap for this season yet, and the built-in fallback is in use. */
+  isDefault: boolean;
+}
+
+export interface LeagueCapResponse {
+  success: boolean;
+  message: string;
+  data?: LeagueCapInfo;
+}
+
 /** Result row for GET /api/players/search. */
 export interface PlayerSearchResult {
   playerId: string;

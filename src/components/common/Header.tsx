@@ -10,6 +10,7 @@ interface HeaderProps {
   lastUpdated?: Date;
   onRefresh?: () => void;
   user?: User | null;
+  isCommissioner?: boolean;
 }
 
 const NAV_LINKS = [
@@ -18,14 +19,18 @@ const NAV_LINKS = [
   { href: '/players', label: 'Players' },
 ];
 
+const COMMISSIONER_LINK = { href: '/commissioner', label: 'Commissioner' };
+
 export default function Header({
   title = "Fantasy League Dashboard",
   subtitle,
   lastUpdated,
   onRefresh,
   user,
+  isCommissioner,
 }: HeaderProps) {
   const router = useRouter();
+  const navLinks = isCommissioner ? [...NAV_LINKS, COMMISSIONER_LINK] : NAV_LINKS;
 
   return (
     <header className="bg-sleeper-panel border-b border-sleeper-border">
@@ -58,7 +63,7 @@ export default function Header({
 
             {/* Navigation Links */}
             <nav className="hidden md:flex items-center space-x-2">
-              {NAV_LINKS.map((link) => {
+              {navLinks.map((link) => {
                 const isActive = router.pathname === link.href;
                 return (
                   <Link

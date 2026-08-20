@@ -1,6 +1,7 @@
 import { DataProcessor } from './data-processor';
 import { SleeperService } from './sleeper-api';
 import { TeamCacheService } from './team-cache';
+import { getLeagueSalaryCap } from './league-settings';
 import { Team, League } from '@/lib/types';
 
 export class FantasyDataService {
@@ -46,10 +47,13 @@ export class FantasyDataService {
 
       // While the league is pre_draft, the rosters endpoint still reflects last
       // season's teams, so build from draft picks (keepers + live picks) instead.
-      const league = await this.sleeperService.getLeague();
+      const [league, { salaryCap }] = await Promise.all([
+        this.sleeperService.getLeague(),
+        getLeagueSalaryCap(),
+      ]);
       const teams = league?.status === 'pre_draft' && league.draft_id
-        ? await this.sleeperService.buildTeamDataFromDraft(processedPlayers, league.draft_id)
-        : await this.sleeperService.buildTeamData(processedPlayers);
+        ? await this.sleeperService.buildTeamDataFromDraft(processedPlayers, league.draft_id, salaryCap)
+        : await this.sleeperService.buildTeamData(processedPlayers, salaryCap);
 
       // Save to cache for future requests
       if (teams.length > 0) {

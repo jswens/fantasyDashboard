@@ -11,7 +11,6 @@ function resolveAvatarUrl(user: SleeperUser): string | null {
 export class SleeperService {
   private baseUrl = 'https://api.sleeper.app/v1';
   private leagueId: string;
-  private salaryCap = 186133333; // $186.13M default cap
 
   constructor(leagueId: string) {
     this.leagueId = leagueId;
@@ -82,7 +81,7 @@ export class SleeperService {
     }
   }
 
-  async buildTeamData(processedPlayers: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }>): Promise<Team[]> {
+  async buildTeamData(processedPlayers: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }>, salaryCap: number): Promise<Team[]> {
     const users = await this.getUsers();
     const rosters = await this.getRosters();
 
@@ -138,9 +137,9 @@ export class SleeperService {
         ties: roster.settings?.ties || 0,
         total_points: roster.settings?.fpts || 0,
         roster: rosterPlayers,
-        salary_cap: this.salaryCap,
+        salary_cap: salaryCap,
         salary_used: totalSalaryCap,
-        salary_remaining: this.salaryCap - totalSalaryCap,
+        salary_remaining: salaryCap - totalSalaryCap,
         roster_size: rosterPlayers.length,
         max_roster_size: 25
       };
@@ -156,7 +155,8 @@ export class SleeperService {
   // league leaves pre_draft.
   async buildTeamDataFromDraft(
     processedPlayers: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }>,
-    draftId: string
+    draftId: string,
+    salaryCap: number
   ): Promise<Team[]> {
     const users = await this.getUsers();
     const rosters = await this.getRosters();
@@ -220,9 +220,9 @@ export class SleeperService {
         ties: 0,
         total_points: 0,
         roster: rosterPlayers,
-        salary_cap: this.salaryCap,
+        salary_cap: salaryCap,
         salary_used: totalSalaryCap,
-        salary_remaining: this.salaryCap - totalSalaryCap,
+        salary_remaining: salaryCap - totalSalaryCap,
         roster_size: rosterPlayers.length,
         max_roster_size: 25
       };

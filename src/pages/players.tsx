@@ -21,7 +21,7 @@ export default function PlayersPage() {
       <Head>
         <title>Players - Fantasy League Dashboard</title>
       </Head>
-      <Header title="Players" user={user} />
+      <Header title="Players" user={user} isCommissioner={isCommissioner} />
       <PlayerSearch user={user} isCommissioner={isCommissioner} />
     </>
   );
