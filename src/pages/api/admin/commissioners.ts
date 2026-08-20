@@ -28,9 +28,30 @@ export default async function handler(
   if (req.method === 'GET') {
     try {
       const snap = await adminDb.collection('commissioners').get();
-      const data: CommissionerEntry[] = snap.docs
-        .map(doc => ({ uid: doc.id, ...(doc.data() as Omit<CommissionerEntry, 'uid'>) }))
-        .sort((a, b) => a.email.localeCompare(b.email));
+      const data: CommissionerEntry[] = await Promise.all(
+        snap.docs.map(async doc => {
+          const raw = doc.data() as Partial<Omit<CommissionerEntry, 'uid'>>;
+          if (raw.email) {
+            return { uid: doc.id, email: raw.email, addedBy: raw.addedBy ?? '', addedAt: raw.addedAt ?? null };
+          }
+
+          // Doc predates email tracking (e.g. created by hand). Backfill from
+          // Auth so the list stays useful instead of showing a blank entry.
+          let email = '(unknown — account no longer exists)';
+          try {
+            const userRecord = await adminAuth.getUser(doc.id);
+            email = userRecord.email || email;
+            await doc.ref.set(
+              { email, addedBy: raw.addedBy ?? 'unknown', addedAt: raw.addedAt ?? FieldValue.serverTimestamp() },
+              { merge: true }
+            );
+          } catch {
+            // Leave the placeholder if the Auth user is gone too.
+          }
+          return { uid: doc.id, email, addedBy: raw.addedBy ?? 'unknown', addedAt: raw.addedAt ?? null };
+        })
+      );
+      data.sort((a, b) => a.email.localeCompare(b.email));
       return res.status(200).json({ success: true, message: 'OK', data });
     } catch (error) {
       console.error('Error listing commissioners:', error);
