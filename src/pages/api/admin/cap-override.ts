@@ -16,7 +16,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAuth, isCommissioner } from '@/lib/auth/firebase-auth';
 import { adminDb } from '@/lib/firebase-admin';
-import { FieldValue } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getCurrentCapSeason } from '@/lib/services/cap-numbers';
 import type { CapOverrideDocument, CapOverrideRequest, CapOverrideResponse } from '@/lib/types/cap';
 
@@ -62,7 +62,10 @@ export default async function handler(
 
     const auditEntry = {
       uid: decoded.uid,
-      changedAt: FieldValue.serverTimestamp(),
+      // Firestore forbids the FieldValue.serverTimestamp() sentinel inside an
+      // array, so use a concrete Timestamp here (top-level updatedAt below can
+      // still use the sentinel).
+      changedAt: Timestamp.now(),
       previousValue,
       newValue: capHit,
     };
