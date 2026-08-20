@@ -1,7 +1,7 @@
 // Resolves the league-wide salary cap, stored per-season at
 // leagueSettings/{season} so it can be changed year to year without a
-// deploy. Mirrors the audit-trail pattern used for per-player cap overrides
-// (see cap-numbers.ts / api/admin/cap-override.ts): every write keeps the
+// deploy. Mirrors the audit-trail pattern used for per-player edits
+// (see src/lib/services/player-edit.ts): every write keeps the
 // previous value and a full history on the document itself.
 
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';

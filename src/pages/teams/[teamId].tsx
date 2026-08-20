@@ -8,12 +8,16 @@ import { ZeroCapWarning } from '@/components/common/ZeroCapWarning';
 import CapByPositionChart from '@/components/team/CapByPositionChart';
 import PlayerAvatar from '@/components/common/PlayerAvatar';
 import TeamLogo from '@/components/common/TeamLogo';
+import PlayerActionsMenu from '@/components/players/PlayerActionsMenu';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { Team } from '@/lib/types';
 import { formatIntAsCurrency } from '@/lib/utils/formatters';
 
 export default function TeamDetail() {
   const router = useRouter();
   const { teamId } = router.query;
+  const { user, isAdmin, isCommissioner } = useAuth();
+  const canEdit = isAdmin || isCommissioner;
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +108,8 @@ export default function TeamDetail() {
         title={team.team_name}
         subtitle={`${team.owner_name} • ${team.wins}-${team.losses}-${team.ties}`}
         onRefresh={fetchTeamData}
+        user={user}
+        isCommissioner={isCommissioner}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -314,6 +320,8 @@ export default function TeamDetail() {
                             />
                           </div>
                         </div>
+
+                        {canEdit && <PlayerActionsMenu playerId={player.player_id} />}
                       </div>
                     </div>
                   </div>

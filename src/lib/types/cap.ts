@@ -62,46 +62,6 @@ export interface CapImportResponse {
   report?: CapImportValidationReport;
 }
 
-/** Audit trail entry stored alongside each override. */
-export interface CapOverrideAuditEntry {
-  uid: string;
-  changedAt: unknown; // Firestore server timestamp
-  previousValue: number | null;
-  newValue: number;
-}
-
-/** Document shape at capNumbers/{season}/overrides/{playerId}. */
-export interface CapOverrideDocument {
-  playerId: string;
-  capHit: number;
-  reason?: string;
-  updatedBy: string;
-  updatedAt: unknown; // Firestore server timestamp
-  previousValue: number | null;
-  history: CapOverrideAuditEntry[];
-}
-
-export interface CapOverrideRequest {
-  season: string;
-  playerId: string;
-  capHit: number;
-  reason?: string;
-}
-
-export interface CapOverrideResponse {
-  success: boolean;
-  message: string;
-  data?: CapOverrideDocument;
-}
-
-/** Source of the effective cap number for a player, surfaced in search results. */
-export type CapSource = 'override' | 'import' | 'legacy-csv' | 'none';
-
-export interface EffectiveCapNumber {
-  capHit: number;
-  source: CapSource;
-}
-
 /** Audit trail entry stored alongside the league cap doc. */
 export interface LeagueCapAuditEntry {
   uid: string;
@@ -146,7 +106,8 @@ export interface PlayerSearchResult {
   position: string;
   capHit: number;
   capHitFormatted: string;
-  capSource: CapSource;
+  /** True when a commissioner has manually set this player's cap hit (via edit or season import). */
+  isManuallyEdited: boolean;
   isRostered: boolean;
   rosterTeamName?: string;
 }

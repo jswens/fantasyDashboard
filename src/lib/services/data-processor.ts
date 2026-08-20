@@ -2,9 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { SleeperPlayer } from '@/lib/types/sleeper';
 import { PlayerPoolFile } from '@/lib/types/playerPool';
-import { formatCapHit } from '@/lib/services/cap-numbers';
+import { formatCapHit, normalizePlayerName } from '@/lib/services/cap-numbers';
 import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import type { PlayerAuditEntry, PlayerEditableField } from '@/lib/types/playerEdit';
 
 const PLAYERS_COLLECTION = 'players';
 const PLAYERS_META_DOC = 'playersMeta';
@@ -45,29 +46,49 @@ export class DataProcessor {
         cap_value_formatted: string;
         search_name: string;
         has_zero_cap_warning: boolean;
+        edited_fields: PlayerEditableField[];
+        audit_history: PlayerAuditEntry[];
       };
+
+      // Load existing docs so a commissioner-edited field (first_name/last_name/team/
+      // cap_value, tracked in edited_fields) survives this refresh instead of being
+      // silently overwritten by the static data/players.json values.
+      const existingSnap = await adminDb.collection(PLAYERS_COLLECTION).get();
+      const existingById = new Map<string, { edited_fields?: PlayerEditableField[]; audit_history?: PlayerAuditEntry[]; first_name?: string; last_name?: string; team?: string | null; cap_value?: number }>();
+      existingSnap.forEach(doc => existingById.set(doc.id, doc.data()));
 
       const processedPlayers: Record<string, ProcessedPlayer> = {};
       let zeroCapHitCount = 0;
 
       for (const [playerId, p] of Object.entries(pool.players)) {
-        const hasZeroCapWarning = p.capHit === null || p.capHit === 0;
+        const existing = existingById.get(playerId);
+        const editedFields = existing?.edited_fields ?? [];
+        const auditHistory = existing?.audit_history ?? [];
+
+        const firstName = editedFields.includes('first_name') ? existing!.first_name! : p.firstName;
+        const lastName = editedFields.includes('last_name') ? existing!.last_name! : p.lastName;
+        const team = editedFields.includes('team') ? existing!.team! : p.team;
+        const capValue = editedFields.includes('cap_value') ? existing!.cap_value! : (p.capHit ?? 0);
+
+        const hasZeroCapWarning = capValue === 0;
         if (hasZeroCapWarning) {
           zeroCapHitCount++;
         }
 
         processedPlayers[playerId] = {
           player_id: p.playerId,
-          first_name: p.firstName,
-          last_name: p.lastName,
-          team: p.team,
+          first_name: firstName,
+          last_name: lastName,
+          team,
           position: p.position,
           years_exp: null,
           active: true,
-          cap_value: p.capHit ?? 0,
-          cap_value_formatted: p.capHit !== null ? formatCapHit(p.capHit) : '$0',
-          search_name: p.searchName,
+          cap_value: capValue,
+          cap_value_formatted: formatCapHit(capValue),
+          search_name: editedFields.length > 0 ? normalizePlayerName(`${firstName} ${lastName}`) : p.searchName,
           has_zero_cap_warning: hasZeroCapWarning,
+          edited_fields: editedFields,
+          audit_history: auditHistory,
         };
       }
 

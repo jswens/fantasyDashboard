@@ -347,7 +347,7 @@ function ManageCommissionersSection({ user }: { user: User }) {
     <div className="bg-sleeper-surface border border-sleeper-border rounded-xl p-6">
       <h2 className="text-lg font-medium text-sleeper-text">Commissioners</h2>
       <p className="text-sm text-sleeper-muted mt-1">
-        Commissioners can set the league salary cap and player cap overrides. The person must have signed in at least once before they can be added.
+        Commissioners can set the league salary cap and edit individual player info (name, team, cap hit). The person must have signed in at least once before they can be added.
       </p>
 
       <div className="mt-4 flex items-end gap-3">

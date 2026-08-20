@@ -3,10 +3,10 @@
 // Commissioner-only (see isCommissioner in firebase-auth.ts). Reads and sets
 // the league-wide salary cap for a season, stored at
 // leagueSettings/{season} — see src/lib/services/league-settings.ts for the
-// audit-trail layering (mirrors the per-player override pattern in
-// cap-override.ts). POST clears the cached team data so cap/usage numbers on
-// the dashboard reflect the new cap on the next load instead of waiting out
-// the 60-minute team cache.
+// audit-trail pattern (mirrors the per-player edit pattern in
+// src/lib/services/player-edit.ts). POST clears the cached team data so cap/usage
+// numbers on the dashboard reflect the new cap on the next load instead of waiting
+// out the 60-minute team cache.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAuth, isCommissioner } from '@/lib/auth/firebase-auth';

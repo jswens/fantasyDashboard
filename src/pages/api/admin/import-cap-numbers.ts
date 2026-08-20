@@ -1,10 +1,15 @@
 // POST /api/admin/import-cap-numbers
 //
-// Admin or commissioner. Imports NFL cap-hit numbers for a season and writes them to
-// Firestore at capNumbers/{season}, replacing the static data/capsheet.csv
-// as the source of truth for that season going forward (capsheet.csv remains
-// a fallback for seasons that have never been imported — see
-// src/lib/services/cap-numbers.ts).
+// Admin or commissioner. Imports NFL cap-hit numbers for a season, writing the
+// matched cap_value directly onto each players/{playerId} doc (via
+// src/lib/services/player-edit.ts, which also appends an audit_history entry
+// and locks the field against the routine data/players.json refresh). A
+// season import always overwrites cap_value, even over a prior manual edit —
+// this is the one bulk, deliberate cap-setting action in the app.
+//
+// Also writes a report doc to capNumbers/{season} (metadata/matched/unmatched)
+// purely as a historical record of what was imported — it is no longer read
+// back to resolve any player's effective cap number.
 //
 // Source: CSV upload (primary path).
 //
@@ -26,8 +31,7 @@
 //   name (or player/player_name), team, position (or pos), cap hit (or cap_hit/salary_cap/cap)
 //
 // Guard rail: if capNumbers/{season} already exists, the import still proceeds
-// (re-imports are expected season-to-season and overrides live in a separate
-// subcollection that this never touches) but the response includes a warning.
+// (re-imports are expected season-to-season) but the response includes a warning.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import formidable from 'formidable';
@@ -36,6 +40,8 @@ import { requireAuth, isAdmin, isCommissioner } from '@/lib/auth/firebase-auth';
 import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { normalizePlayerName, getCurrentCapSeason } from '@/lib/services/cap-numbers';
+import { editPlayerFieldsBulk } from '@/lib/services/player-edit';
+import { TeamCacheService } from '@/lib/services/team-cache';
 import type {
   CapImportEntry,
   CapImportResponse,
@@ -247,6 +253,19 @@ export default async function handler(
       unmatched,
     });
 
+    // Write the matched cap hits directly onto each player's doc — this is
+    // the actual source of truth read by every page (team rosters, free
+    // agents, search). Always overwrites, even over a prior manual edit.
+    await editPlayerFieldsBulk(
+      Object.entries(matchedPlayers).map(([playerId, entry]) => ({
+        playerId,
+        edits: { cap_value: entry.capHit },
+      })),
+      { uid: decoded.uid, email: decoded.email || '' },
+      'season-import'
+    );
+    await new TeamCacheService().clearCache();
+
     const report = {
       season,
       totalRows: rows.length,
@@ -258,7 +277,7 @@ export default async function handler(
     };
 
     const warningSuffix = alreadyImported
-      ? ` Warning: cap numbers for season ${season} already existed and have been replaced (overrides were preserved).`
+      ? ` Warning: cap numbers for season ${season} already existed and have been replaced.`
       : '';
 
     return res.status(200).json({

@@ -22,7 +22,7 @@ export default function FreeAgentsPage() {
         <title>Free Agents - Fantasy League Dashboard</title>
       </Head>
       <Header title="Free Agents" user={user} isCommissioner={isCommissioner} />
-      <FreeAgentsDisplay user={user} isAdmin={isAdmin} />
+      <FreeAgentsDisplay user={user} isAdmin={isAdmin} isCommissioner={isCommissioner} />
     </>
   );
 }

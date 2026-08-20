@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from 'firebase/auth';
+import PlayerActionsMenu from '@/components/players/PlayerActionsMenu';
 
 interface PlayerSearchResult {
   playerId: string;
@@ -8,7 +9,7 @@ interface PlayerSearchResult {
   position: string;
   capHit: number;
   capHitFormatted: string;
-  capSource: 'override' | 'import' | 'legacy-csv' | 'none';
+  isManuallyEdited: boolean;
   isRostered: boolean;
   rosterTeamName?: string;
 }
@@ -16,23 +17,10 @@ interface PlayerSearchResult {
 interface PlayerSearchProps {
   user: User;
   isCommissioner: boolean;
+  isAdmin?: boolean;
   /** When true, shows only rostered players with a $0 effective cap hit instead of a free-text search. */
   zeroCapOnly?: boolean;
 }
-
-const CAP_SOURCE_LABELS: Record<PlayerSearchResult['capSource'], string> = {
-  override: 'Admin override',
-  import: 'Season import',
-  'legacy-csv': 'Legacy CSV',
-  none: 'No data',
-};
-
-const CAP_SOURCE_STYLES: Record<PlayerSearchResult['capSource'], string> = {
-  override: 'bg-sleeper-purple/15 text-sleeper-purple',
-  import: 'bg-sleeper-teal-muted text-sleeper-teal',
-  'legacy-csv': 'bg-sleeper-surface-hover text-sleeper-muted',
-  none: 'bg-sleeper-red-muted text-sleeper-red',
-};
 
 const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
 
@@ -40,7 +28,8 @@ type RosterStatusFilter = 'all' | 'free_agent' | 'rostered';
 type SortBy = 'name' | 'capHit';
 type SortDir = 'asc' | 'desc';
 
-export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false }: PlayerSearchProps) {
+export default function PlayerSearch({ user, isCommissioner, isAdmin = false, zeroCapOnly = false }: PlayerSearchProps) {
+  const canEdit = isCommissioner || isAdmin;
   const [query, setQuery] = useState('');
   const [position, setPosition] = useState('');
   const [rosterStatus, setRosterStatus] = useState<RosterStatusFilter>('all');
@@ -51,10 +40,6 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [savingPlayerId, setSavingPlayerId] = useState<string | null>(null);
-  const [saveMessage, setSaveMessage] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const getAuthHeader = useCallback(async () => {
@@ -111,50 +96,6 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
     };
   }, [runSearch, zeroCapOnly]);
 
-  const startEdit = (player: PlayerSearchResult) => {
-    setEditingPlayerId(player.playerId);
-    setEditValue(String(player.capHit));
-    setSaveMessage('');
-  };
-
-  const cancelEdit = () => {
-    setEditingPlayerId(null);
-    setEditValue('');
-  };
-
-  const submitOverride = async (playerId: string) => {
-    const capHit = parseInt(editValue.replace(/[$,]/g, ''), 10);
-    if (isNaN(capHit) || capHit < 0) {
-      setSaveMessage('Error: enter a valid non-negative cap number');
-      return;
-    }
-
-    setSavingPlayerId(playerId);
-    setSaveMessage('');
-    try {
-      const headers = await getAuthHeader();
-      const response = await fetch('/api/admin/cap-override', {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId, capHit }),
-      });
-      const data = await response.json();
-
-      if (data.success) {
-        setSaveMessage(data.message);
-        setEditingPlayerId(null);
-        await runSearch();
-      } else {
-        setSaveMessage(`Error: ${data.message}`);
-      }
-    } catch (err) {
-      console.error('Cap override error:', err);
-      setSaveMessage('Error: failed to save override');
-    } finally {
-      setSavingPlayerId(null);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-sleeper-bg">
       <div className="bg-sleeper-panel border-b border-sleeper-border">
@@ -164,8 +105,8 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
           </h1>
           <p className="text-sm text-sleeper-muted mt-1">
             {zeroCapOnly
-              ? 'Rostered players whose effective salary cap number is still $0. Set a cap number below to clear the warning.'
-              : 'Search all players and verify effective salary cap numbers (override > season import > legacy CSV).'}
+              ? 'Rostered players whose cap number is still $0. Edit the player to clear the warning.'
+              : 'Search all players and verify salary cap numbers.'}
           </p>
         </div>
       </div>
@@ -240,12 +181,6 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
           </div>
         )}
 
-        {saveMessage && (
-          <div className={`rounded-md p-4 mb-4 border ${saveMessage.startsWith('Error') ? 'bg-sleeper-red-muted text-sleeper-red border-sleeper-red/30' : 'bg-sleeper-teal-muted text-sleeper-teal border-sleeper-teal/30'}`}>
-            <p className="text-sm">{saveMessage}</p>
-          </div>
-        )}
-
         <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
           <div className="px-4 py-5 sm:px-6 flex items-center justify-between border-b border-sleeper-border">
             <h3 className="text-lg leading-6 font-medium text-sleeper-text">
@@ -268,16 +203,15 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
                   <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Team / Pos</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Cap Hit</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Source</th>
-                  {isCommissioner && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider">Actions</th>
+                  {canEdit && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-sleeper-muted uppercase tracking-wider w-10"></th>
                   )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-sleeper-border">
                 {results.length === 0 && !loading ? (
                   <tr>
-                    <td colSpan={isCommissioner ? 6 : 5} className="px-4 py-8 text-center text-sleeper-muted">
+                    <td colSpan={canEdit ? 5 : 4} className="px-4 py-8 text-center text-sleeper-muted">
                       {zeroCapOnly ? 'No zero cap hit players — everyone rostered has a cap number.' : 'No players found'}
                     </td>
                   </tr>
@@ -302,50 +236,18 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
                         )}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-sm text-sleeper-text">
-                        {editingPlayerId === player.playerId ? (
-                          <input
-                            type="text"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            className="w-28 px-2 py-1 bg-sleeper-bg border border-sleeper-border rounded-md text-sm text-sleeper-text focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
-                            disabled={savingPlayerId === player.playerId}
-                          />
-                        ) : (
-                          player.capHitFormatted
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${CAP_SOURCE_STYLES[player.capSource]}`}>
-                          {CAP_SOURCE_LABELS[player.capSource]}
-                        </span>
-                      </td>
-                      {isCommissioner && (
-                        <td className="px-4 py-3 whitespace-nowrap text-sm">
-                          {editingPlayerId === player.playerId ? (
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => submitOverride(player.playerId)}
-                                disabled={savingPlayerId === player.playerId}
-                                className="px-2 py-1 text-xs font-semibold text-sleeper-bg bg-sleeper-teal rounded-full hover:bg-sleeper-teal-dark disabled:opacity-50"
-                              >
-                                {savingPlayerId === player.playerId ? 'Saving…' : 'Save'}
-                              </button>
-                              <button
-                                onClick={cancelEdit}
-                                disabled={savingPlayerId === player.playerId}
-                                className="px-2 py-1 text-xs font-medium text-sleeper-muted bg-sleeper-surface-hover rounded-full hover:text-sleeper-text"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => startEdit(player)}
-                              className="px-2 py-1 text-xs font-medium text-sleeper-teal hover:text-sleeper-teal-dark"
-                            >
-                              Edit
-                            </button>
+                        <div className="flex items-center gap-2">
+                          {player.capHitFormatted}
+                          {player.isManuallyEdited && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-sleeper-purple/15 text-sleeper-purple">
+                              Manually edited
+                            </span>
                           )}
+                        </div>
+                      </td>
+                      {canEdit && (
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-right">
+                          <PlayerActionsMenu playerId={player.playerId} />
                         </td>
                       )}
                     </tr>

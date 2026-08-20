@@ -6,7 +6,7 @@ import PlayerSearch from '@/components/players/PlayerSearch';
 import Loading from '@/components/common/Loading';
 
 export default function PlayersPage() {
-  const { user, isCommissioner, loading } = useAuth();
+  const { user, isAdmin, isCommissioner, loading } = useAuth();
 
   if (loading) {
     return <Loading />;
@@ -22,7 +22,7 @@ export default function PlayersPage() {
         <title>Players - Fantasy League Dashboard</title>
       </Head>
       <Header title="Players" user={user} isCommissioner={isCommissioner} />
-      <PlayerSearch user={user} isCommissioner={isCommissioner} />
+      <PlayerSearch user={user} isCommissioner={isCommissioner} isAdmin={isAdmin} />
     </>
   );
 }

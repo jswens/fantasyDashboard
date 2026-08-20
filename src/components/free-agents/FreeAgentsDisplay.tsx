@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { User } from 'firebase/auth';
 import { usePlayerMarks } from '@/lib/hooks/usePlayerMarks';
 import PlayerMarkButtons from '@/components/player/PlayerMarkButtons';
+import PlayerActionsMenu from '@/components/players/PlayerActionsMenu';
 import { PlayerMarkType } from '@/lib/types/marks';
 
 interface FreeAgent {
@@ -24,9 +25,11 @@ interface FreeAgentsByPosition {
 interface FreeAgentsDisplayProps {
   user: User;
   isAdmin: boolean;
+  isCommissioner?: boolean;
 }
 
-export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayProps) {
+export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = false }: FreeAgentsDisplayProps) {
+  const canEdit = isAdmin || isCommissioner;
   const [freeAgents, setFreeAgents] = useState<FreeAgentsByPosition>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -356,6 +359,11 @@ export default function FreeAgentsDisplay({ user, isAdmin }: FreeAgentsDisplayPr
                             onChange={(mark) => setMark(player.player_id, mark)}
                           />
                         </div>
+                        {canEdit && (
+                          <div className="ml-2">
+                            <PlayerActionsMenu playerId={player.player_id} />
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         {player.tier !== undefined ? (
