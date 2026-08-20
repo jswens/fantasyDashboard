@@ -1,5 +1,7 @@
+import Head from 'next/head';
 import { useAuth } from '@/lib/hooks/useAuth';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
+import Header from '@/components/common/Header';
 import FreeAgentsDisplay from '@/components/free-agents/FreeAgentsDisplay';
 import Loading from '@/components/common/Loading';
 
@@ -14,5 +16,13 @@ export default function FreeAgentsPage() {
     return <GoogleSignIn user={null} />;
   }
 
-  return <FreeAgentsDisplay user={user} isAdmin={isAdmin} />;
+  return (
+    <>
+      <Head>
+        <title>Free Agents - Fantasy League Dashboard</title>
+      </Head>
+      <Header title="Free Agents" user={user} />
+      <FreeAgentsDisplay user={user} isAdmin={isAdmin} />
+    </>
+  );
 }
