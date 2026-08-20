@@ -1,10 +1,16 @@
-// GET /api/players/search?q=<query>
+// GET /api/players/search?q=<query>&position=<pos>&rosterStatus=<all|free_agent|rostered>&sortBy=<name|capHit>&sortDir=<asc|desc>&excludeZeroCap=<true|false>
 // GET /api/players/search?zeroCapOnly=true
 //
 // Authenticated (any signed-in user). Case-insensitive substring search over
 // the processed players cache (Firestore `players` collection), returning each
 // player's effective cap number (override > season import > legacy capsheet.csv
 // — see src/lib/services/cap-numbers.ts) plus rostered/free-agent status.
+//
+// position, rosterStatus, q, and excludeZeroCap all combine (AND'd together) so
+// the client can search within an already-filtered slice. sortBy/sortDir control
+// ordering, defaulting to name ascending. excludeZeroCap defaults to true — most
+// $0 cap hit players are fringe/retired players nobody cares about — pass
+// excludeZeroCap=false to include them.
 //
 // zeroCapOnly=true switches modes: instead of a text search, returns every
 // *rostered* player whose effective cap number is still $0 — the same set the
@@ -45,6 +51,25 @@ export default async function handler(
     const zeroCapOnlyRaw = req.query.zeroCapOnly;
     const zeroCapOnly = (Array.isArray(zeroCapOnlyRaw) ? zeroCapOnlyRaw[0] : zeroCapOnlyRaw) === 'true';
 
+    const positionRaw = req.query.position;
+    const position = (Array.isArray(positionRaw) ? positionRaw[0] : positionRaw || '').trim().toUpperCase();
+
+    const rosterStatusRaw = req.query.rosterStatus;
+    const rosterStatus = (Array.isArray(rosterStatusRaw) ? rosterStatusRaw[0] : rosterStatusRaw || 'all').trim();
+
+    // Defaults to true: most $0 cap hit players are fringe/retired players nobody
+    // is interested in rostering. Pass excludeZeroCap=false to include them.
+    const excludeZeroCapRaw = req.query.excludeZeroCap;
+    const excludeZeroCap = (Array.isArray(excludeZeroCapRaw) ? excludeZeroCapRaw[0] : excludeZeroCapRaw) !== 'false';
+
+    const sortByRaw = req.query.sortBy;
+    const sortBy = (Array.isArray(sortByRaw) ? sortByRaw[0] : sortByRaw) === 'capHit' ? 'capHit' : 'name';
+
+    const sortDirRaw = req.query.sortDir;
+    const sortDir = (Array.isArray(sortDirRaw) ? sortDirRaw[0] : sortDirRaw) === 'desc' ? 'desc' : 'asc';
+
+    const hasFilters = Boolean(query || position || rosterStatus !== 'all' || excludeZeroCap);
+
     const [playersSnap, layers, teams] = await Promise.all([
       adminDb.collection('players').get(),
       loadCapLayers(getCurrentCapSeason()),
@@ -71,8 +96,12 @@ export default async function handler(
 
       if (zeroCapOnly) {
         if (!isRostered || effective.capHit !== 0) return;
-      } else if (query && !fullName.toLowerCase().includes(query)) {
-        return;
+      } else {
+        if (query && !fullName.toLowerCase().includes(query)) return;
+        if (position && player.position !== position) return;
+        if (rosterStatus === 'free_agent' && isRostered) return;
+        if (rosterStatus === 'rostered' && !isRostered) return;
+        if (excludeZeroCap && effective.capHit === 0) return;
       }
 
       results.push({
@@ -88,11 +117,17 @@ export default async function handler(
       });
     });
 
-    // Sort alphabetically by name. Cap the result set for the free-text search
-    // endpoint use case, but not for zeroCapOnly — the whole point there is to
-    // surface every player still needing a fix.
-    results.sort((a, b) => a.fullName.localeCompare(b.fullName));
-    const limited = zeroCapOnly ? results : results.slice(0, MAX_RESULTS);
+    if (sortBy === 'capHit') {
+      results.sort((a, b) => sortDir === 'desc' ? b.capHit - a.capHit : a.capHit - b.capHit);
+    } else {
+      results.sort((a, b) => sortDir === 'desc' ? b.fullName.localeCompare(a.fullName) : a.fullName.localeCompare(b.fullName));
+    }
+
+    // Cap the result set for the default, unfiltered "browse everything" case.
+    // Once the client has narrowed things down with a query/position/roster-status
+    // filter (or zeroCapOnly's dedicated mode) the point is to see the whole
+    // filtered set, so skip truncation.
+    const limited = (zeroCapOnly || hasFilters) ? results : results.slice(0, MAX_RESULTS);
 
     return res.status(200).json({
       success: true,

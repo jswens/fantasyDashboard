@@ -34,8 +34,19 @@ const CAP_SOURCE_STYLES: Record<PlayerSearchResult['capSource'], string> = {
   none: 'bg-sleeper-red-muted text-sleeper-red',
 };
 
+const POSITIONS = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB'];
+
+type RosterStatusFilter = 'all' | 'free_agent' | 'rostered';
+type SortBy = 'name' | 'capHit';
+type SortDir = 'asc' | 'desc';
+
 export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false }: PlayerSearchProps) {
   const [query, setQuery] = useState('');
+  const [position, setPosition] = useState('');
+  const [rosterStatus, setRosterStatus] = useState<RosterStatusFilter>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [excludeZeroCap, setExcludeZeroCap] = useState(true);
   const [results, setResults] = useState<PlayerSearchResult[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -51,14 +62,24 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
     return { Authorization: `Bearer ${idToken}` };
   }, [user]);
 
-  const runSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
       const headers = await getAuthHeader();
-      const url = zeroCapOnly
-        ? '/api/players/search?zeroCapOnly=true'
-        : `/api/players/search?q=${encodeURIComponent(q)}`;
+      let url: string;
+      if (zeroCapOnly) {
+        url = '/api/players/search?zeroCapOnly=true';
+      } else {
+        const params = new URLSearchParams();
+        if (query) params.set('q', query);
+        if (position) params.set('position', position);
+        if (rosterStatus !== 'all') params.set('rosterStatus', rosterStatus);
+        params.set('sortBy', sortBy);
+        params.set('sortDir', sortDir);
+        if (!excludeZeroCap) params.set('excludeZeroCap', 'false');
+        url = `/api/players/search?${params.toString()}`;
+      }
       const response = await fetch(url, { headers });
       const data = await response.json();
 
@@ -74,21 +95,21 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader, zeroCapOnly]);
+  }, [getAuthHeader, zeroCapOnly, query, position, rosterStatus, sortBy, sortDir, excludeZeroCap]);
 
   useEffect(() => {
     if (zeroCapOnly) {
-      runSearch('');
+      runSearch();
       return;
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      runSearch(query);
+      runSearch();
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, runSearch, zeroCapOnly]);
+  }, [runSearch, zeroCapOnly]);
 
   const startEdit = (player: PlayerSearchResult) => {
     setEditingPlayerId(player.playerId);
@@ -122,7 +143,7 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
       if (data.success) {
         setSaveMessage(data.message);
         setEditingPlayerId(null);
-        await runSearch(query);
+        await runSearch();
       } else {
         setSaveMessage(`Error: ${data.message}`);
       }
@@ -151,7 +172,7 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {!zeroCapOnly && (
-          <div className="mb-4">
+          <div className="mb-4 flex flex-wrap items-center gap-3">
             <div className="relative w-full max-w-md">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sleeper-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -160,10 +181,56 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by player name..."
+                placeholder="Search within filtered players..."
                 className="w-full pl-9 pr-3 py-2 bg-sleeper-surface border border-sleeper-border rounded-full text-sleeper-text placeholder-sleeper-faint focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
               />
             </div>
+
+            <select
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
+              className="px-3 py-2 bg-sleeper-surface border border-sleeper-border rounded-full text-sm text-sleeper-text focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
+            >
+              <option value="">All Positions</option>
+              {POSITIONS.map(pos => (
+                <option key={pos} value={pos}>{pos}</option>
+              ))}
+            </select>
+
+            <select
+              value={rosterStatus}
+              onChange={(e) => setRosterStatus(e.target.value as RosterStatusFilter)}
+              className="px-3 py-2 bg-sleeper-surface border border-sleeper-border rounded-full text-sm text-sleeper-text focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
+            >
+              <option value="all">All Players</option>
+              <option value="free_agent">Free Agents Only</option>
+              <option value="rostered">Rostered Only</option>
+            </select>
+
+            <select
+              value={`${sortBy}:${sortDir}`}
+              onChange={(e) => {
+                const [nextSortBy, nextSortDir] = e.target.value.split(':') as [SortBy, SortDir];
+                setSortBy(nextSortBy);
+                setSortDir(nextSortDir);
+              }}
+              className="px-3 py-2 bg-sleeper-surface border border-sleeper-border rounded-full text-sm text-sleeper-text focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
+            >
+              <option value="name:asc">Name (A-Z)</option>
+              <option value="name:desc">Name (Z-A)</option>
+              <option value="capHit:desc">Cap Hit (High-Low)</option>
+              <option value="capHit:asc">Cap Hit (Low-High)</option>
+            </select>
+
+            <label className="flex items-center gap-2 px-3 py-2 text-sm text-sleeper-muted select-none cursor-pointer">
+              <input
+                type="checkbox"
+                checked={excludeZeroCap}
+                onChange={(e) => setExcludeZeroCap(e.target.checked)}
+                className="rounded border-sleeper-border text-sleeper-teal focus:ring-sleeper-teal"
+              />
+              Hide $0 cap hit players
+            </label>
           </div>
         )}
 
@@ -182,7 +249,11 @@ export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false
         <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
           <div className="px-4 py-5 sm:px-6 flex items-center justify-between border-b border-sleeper-border">
             <h3 className="text-lg leading-6 font-medium text-sleeper-text">
-              {zeroCapOnly ? 'Zero cap hit' : query ? `Results for "${query}"` : 'All players'}
+              {zeroCapOnly
+                ? 'Zero cap hit'
+                : query || position || rosterStatus !== 'all' || !excludeZeroCap
+                ? `Results${query ? ` for "${query}"` : ''}`
+                : 'All players'}
             </h3>
             <span className="text-sm text-sleeper-muted">
               {loading ? 'Loading…' : `${total} player${total === 1 ? '' : 's'}`}
