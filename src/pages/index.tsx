@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import Header from '@/components/common/Header';
 import Loading from '@/components/common/Loading';
 import { ZeroCapWarning } from '@/components/common/ZeroCapWarning';
@@ -217,7 +218,10 @@ export default function Dashboard() {
           </div>
 
           {/* Zero Cap Warning Card */}
-          <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
+          <Link
+            href="/players/zero-cap"
+            className="block bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl hover:border-sleeper-yellow/50 hover:bg-sleeper-surface-hover transition-colors cursor-pointer"
+          >
             <div className="p-5">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -242,12 +246,13 @@ export default function Dashboard() {
                 </div>
               </div>
               {leagueStats?.zeroCapWarnings && leagueStats.zeroCapWarnings.zeroCapCount > 0 && (
-                <div className="mt-3">
+                <div className="mt-3 flex items-center justify-between">
                   <ZeroCapWarning className="text-xs" />
+                  <span className="text-xs text-sleeper-faint">View &amp; fix &rarr;</span>
                 </div>
               )}
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Teams Grid */}

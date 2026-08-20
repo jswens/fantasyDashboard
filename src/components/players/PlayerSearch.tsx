@@ -16,6 +16,8 @@ interface PlayerSearchResult {
 interface PlayerSearchProps {
   user: User;
   isCommissioner: boolean;
+  /** When true, shows only rostered players with a $0 effective cap hit instead of a free-text search. */
+  zeroCapOnly?: boolean;
 }
 
 const CAP_SOURCE_LABELS: Record<PlayerSearchResult['capSource'], string> = {
@@ -32,7 +34,7 @@ const CAP_SOURCE_STYLES: Record<PlayerSearchResult['capSource'], string> = {
   none: 'bg-sleeper-red-muted text-sleeper-red',
 };
 
-export default function PlayerSearch({ user, isCommissioner }: PlayerSearchProps) {
+export default function PlayerSearch({ user, isCommissioner, zeroCapOnly = false }: PlayerSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlayerSearchResult[]>([]);
   const [total, setTotal] = useState(0);
@@ -54,7 +56,10 @@ export default function PlayerSearch({ user, isCommissioner }: PlayerSearchProps
     setError('');
     try {
       const headers = await getAuthHeader();
-      const response = await fetch(`/api/players/search?q=${encodeURIComponent(q)}`, { headers });
+      const url = zeroCapOnly
+        ? '/api/players/search?zeroCapOnly=true'
+        : `/api/players/search?q=${encodeURIComponent(q)}`;
+      const response = await fetch(url, { headers });
       const data = await response.json();
 
       if (data.success) {
@@ -69,9 +74,13 @@ export default function PlayerSearch({ user, isCommissioner }: PlayerSearchProps
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeader]);
+  }, [getAuthHeader, zeroCapOnly]);
 
   useEffect(() => {
+    if (zeroCapOnly) {
+      runSearch('');
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       runSearch(query);
@@ -79,7 +88,7 @@ export default function PlayerSearch({ user, isCommissioner }: PlayerSearchProps
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, runSearch]);
+  }, [query, runSearch, zeroCapOnly]);
 
   const startEdit = (player: PlayerSearchResult) => {
     setEditingPlayerId(player.playerId);
@@ -129,28 +138,34 @@ export default function PlayerSearch({ user, isCommissioner }: PlayerSearchProps
     <div className="min-h-screen bg-sleeper-bg">
       <div className="bg-sleeper-panel border-b border-sleeper-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-sleeper-text">Player Cap Search</h1>
+          <h1 className="text-3xl font-bold text-sleeper-text">
+            {zeroCapOnly ? 'Zero Cap Hit Players' : 'Player Cap Search'}
+          </h1>
           <p className="text-sm text-sleeper-muted mt-1">
-            Search all players and verify effective salary cap numbers (override &gt; season import &gt; legacy CSV).
+            {zeroCapOnly
+              ? 'Rostered players whose effective salary cap number is still $0. Set a cap number below to clear the warning.'
+              : 'Search all players and verify effective salary cap numbers (override > season import > legacy CSV).'}
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-4">
-          <div className="relative w-full max-w-md">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sleeper-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by player name..."
-              className="w-full pl-9 pr-3 py-2 bg-sleeper-surface border border-sleeper-border rounded-full text-sleeper-text placeholder-sleeper-faint focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
-            />
+        {!zeroCapOnly && (
+          <div className="mb-4">
+            <div className="relative w-full max-w-md">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sleeper-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by player name..."
+                className="w-full pl-9 pr-3 py-2 bg-sleeper-surface border border-sleeper-border rounded-full text-sleeper-text placeholder-sleeper-faint focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {error && (
           <div className="rounded-md p-4 mb-4 bg-sleeper-red-muted border border-sleeper-red/30 text-sleeper-red">
@@ -167,10 +182,10 @@ export default function PlayerSearch({ user, isCommissioner }: PlayerSearchProps
         <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
           <div className="px-4 py-5 sm:px-6 flex items-center justify-between border-b border-sleeper-border">
             <h3 className="text-lg leading-6 font-medium text-sleeper-text">
-              {query ? `Results for "${query}"` : 'All players'}
+              {zeroCapOnly ? 'Zero cap hit' : query ? `Results for "${query}"` : 'All players'}
             </h3>
             <span className="text-sm text-sleeper-muted">
-              {loading ? 'Searching…' : `${total} player${total === 1 ? '' : 's'}`}
+              {loading ? 'Loading…' : `${total} player${total === 1 ? '' : 's'}`}
             </span>
           </div>
 
@@ -192,7 +207,7 @@ export default function PlayerSearch({ user, isCommissioner }: PlayerSearchProps
                 {results.length === 0 && !loading ? (
                   <tr>
                     <td colSpan={isCommissioner ? 6 : 5} className="px-4 py-8 text-center text-sleeper-muted">
-                      No players found
+                      {zeroCapOnly ? 'No zero cap hit players — everyone rostered has a cap number.' : 'No players found'}
                     </td>
                   </tr>
                 ) : (
