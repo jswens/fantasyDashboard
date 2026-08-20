@@ -8,6 +8,7 @@ import Header from '@/components/common/Header';
 import Loading from '@/components/common/Loading';
 import PlayerAvatar from '@/components/common/PlayerAvatar';
 import { formatIntAsCurrency } from '@/lib/utils/formatters';
+import { NFL_TEAMS } from '@/lib/constants/nflTeams';
 import type { PlayerDetail, PlayerEditableField, PlayerEditRequest } from '@/lib/types/playerEdit';
 
 const FIELD_LABELS: Record<PlayerEditableField, string> = {
@@ -212,14 +213,17 @@ export default function PlayerDetailPage() {
                   </Field>
 
                   <Field label="Team" locked={player.edited_fields.includes('team')}>
-                    <input
-                      type="text"
+                    <select
                       value={team}
                       onChange={(e) => setTeam(e.target.value)}
-                      placeholder="e.g. DAL (blank = free agent)"
                       disabled={!canEdit || saving}
-                      className="w-full px-3 py-2 bg-sleeper-bg border border-sleeper-border rounded-md text-sm text-sleeper-text placeholder-sleeper-faint focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal disabled:opacity-60"
-                    />
+                      className="w-full px-3 py-2 bg-sleeper-bg border border-sleeper-border rounded-md text-sm text-sleeper-text focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal disabled:opacity-60"
+                    >
+                      <option value="">FA (Free Agent)</option>
+                      {NFL_TEAMS.map(abbr => (
+                        <option key={abbr} value={abbr}>{abbr}</option>
+                      ))}
+                    </select>
                   </Field>
 
                   <Field label="Cap hit ($)" locked={player.edited_fields.includes('cap_value')}>

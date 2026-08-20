@@ -5,10 +5,12 @@
 //
 // PATCH: commissioner or admin only. Body is a partial PlayerEditRequest
 // (first_name, last_name, team, cap_value — only include fields being
-// changed). Writes directly to players/{playerId} via
-// src/lib/services/player-edit.ts, which appends an audit_history entry per
-// changed field. Clears the team cache afterward (same pattern as
-// /api/admin/league-cap) so roster/cap totals reflect the edit immediately.
+// changed). `team` must be one of the 32 NFL team abbreviations in
+// src/lib/constants/nflTeams.ts, or null/omitted for a free agent. Writes
+// directly to players/{playerId} via src/lib/services/player-edit.ts, which
+// appends an audit_history entry per changed field. Clears the team cache
+// afterward (same pattern as /api/admin/league-cap) so roster/cap totals
+// reflect the edit immediately.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAuth, isAdmin, isCommissioner } from '@/lib/auth/firebase-auth';
@@ -16,6 +18,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { FantasyDataService } from '@/lib/services/fantasy-data';
 import { TeamCacheService } from '@/lib/services/team-cache';
 import { editPlayerFields, toPlayerDetail } from '@/lib/services/player-edit';
+import { isValidNFLTeam } from '@/lib/constants/nflTeams';
 import type { PlayerDetailResponse, PlayerEditRequest, PlayerEditResponse } from '@/lib/types/playerEdit';
 
 async function getRosterStatus(playerId: string): Promise<{ isRostered: boolean; rosterTeamName?: string }> {
@@ -92,7 +95,14 @@ export default async function handler(
         edits.last_name = trimmed;
       }
       if (body.team !== undefined) {
-        edits.team = body.team === null ? null : body.team.trim().toUpperCase() || null;
+        const trimmed = body.team === null ? '' : body.team.trim().toUpperCase();
+        if (trimmed === '' || trimmed === 'FA') {
+          edits.team = null;
+        } else if (isValidNFLTeam(trimmed)) {
+          edits.team = trimmed;
+        } else {
+          return res.status(400).json({ success: false, message: `team must be "FA" or one of the 32 NFL team abbreviations (got "${body.team}")` });
+        }
       }
       if (body.cap_value !== undefined) {
         if (typeof body.cap_value !== 'number' || !Number.isFinite(body.cap_value) || body.cap_value < 0) {
