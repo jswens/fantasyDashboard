@@ -128,18 +128,18 @@ export class DataProcessor {
 
   async loadProcessedPlayersFromCache(): Promise<Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }> | null> {
     try {
-      // Check metadata doc for TTL
+      // Age is logged, never enforced. The player pool comes from a static
+      // data/players.json that only changes on deploy, so an old cache is still
+      // correct data -- discarding it here is what used to blank the site.
       const metaDoc = await adminDb.collection('cache').doc(PLAYERS_META_DOC).get();
-      if (!metaDoc.exists) return null;
-
-      const meta = metaDoc.data()!;
-      const cachedAt = meta.cachedAt?.toDate?.() as Date | undefined;
-      if (!cachedAt) return null;
-
-      const hoursDiff = (Date.now() - cachedAt.getTime()) / (1000 * 60 * 60);
-      if (hoursDiff > PLAYERS_CACHE_TTL_HOURS) {
-        console.log('Processed players cache is stale (>24 hours old)');
-        return null;
+      const cachedAt = metaDoc.exists
+        ? (metaDoc.data()!.cachedAt?.toDate?.() as Date | undefined)
+        : undefined;
+      if (cachedAt) {
+        const hoursDiff = (Date.now() - cachedAt.getTime()) / (1000 * 60 * 60);
+        if (hoursDiff > PLAYERS_CACHE_TTL_HOURS) {
+          console.log(`Processed players cache is ${Math.round(hoursDiff)}h old; using it anyway`);
+        }
       }
 
       // Read all player documents
@@ -191,7 +191,16 @@ export class DataProcessor {
       return cachedPlayers;
     }
 
-    console.log('Cache miss — cannot generate without raw players; trigger a data refresh');
-    return null;
+    // Nothing cached at all (first run, or the collection was wiped). Rebuild
+    // from data/players.json rather than making the caller wait for a
+    // commissioner to press Refresh Data.
+    console.log('No processed players cached; building from data/players.json');
+    const built = await this.createProcessedPlayersCache();
+    if (!built) {
+      console.error('Failed to build processed players cache');
+      return null;
+    }
+
+    return await this.loadProcessedPlayersFromCache();
   }
 }

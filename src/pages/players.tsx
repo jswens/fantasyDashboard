@@ -4,6 +4,7 @@ import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import Header from '@/components/common/Header';
 import PlayerSearch from '@/components/players/PlayerSearch';
 import Loading from '@/components/common/Loading';
+import DataFreshness from '@/components/common/DataFreshness';
 
 export default function PlayersPage() {
   const { user, isAdmin, isCommissioner, loading } = useAuth();
@@ -23,6 +24,7 @@ export default function PlayersPage() {
       </Head>
       <Header title="Players" user={user} isCommissioner={isCommissioner} />
       <PlayerSearch user={user} isCommissioner={isCommissioner} isAdmin={isAdmin} />
+      <DataFreshness />
     </>
   );
 }

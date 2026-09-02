@@ -81,12 +81,15 @@ export class SleeperService {
     }
   }
 
-  async buildTeamData(processedPlayers: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }>, salaryCap: number): Promise<Team[]> {
-    const users = await this.getUsers();
-    const rosters = await this.getRosters();
+  // Returns null (not []) when Sleeper is unreachable, so callers can tell an
+  // outage apart from a league that genuinely has no teams and fall back to
+  // cached data instead of publishing an empty league.
+  async buildTeamData(processedPlayers: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }>, salaryCap: number): Promise<Team[] | null> {
+    const [users, rosters] = await Promise.all([this.getUsers(), this.getRosters()]);
 
     if (!users || !rosters) {
-      return [];
+      console.error('Sleeper users/rosters unavailable; cannot build team data');
+      return null;
     }
 
     const teams: Team[] = [];
@@ -157,13 +160,16 @@ export class SleeperService {
     processedPlayers: Record<string, SleeperPlayer & { cap_value: number; cap_value_formatted: string; search_name: string; has_zero_cap_warning: boolean; }>,
     draftId: string,
     salaryCap: number
-  ): Promise<Team[]> {
-    const users = await this.getUsers();
-    const rosters = await this.getRosters();
-    const picks = await this.getDraftPicks(draftId);
+  ): Promise<Team[] | null> {
+    const [users, rosters, picks] = await Promise.all([
+      this.getUsers(),
+      this.getRosters(),
+      this.getDraftPicks(draftId),
+    ]);
 
     if (!users || !rosters || !picks) {
-      return [];
+      console.error('Sleeper users/rosters/picks unavailable; cannot build draft team data');
+      return null;
     }
 
     const draftedPlayerIdsByRoster = new Map<number, string[]>();

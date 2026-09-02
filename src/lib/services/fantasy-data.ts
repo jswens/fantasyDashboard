@@ -4,6 +4,20 @@ import { TeamCacheService } from './team-cache';
 import { getLeagueSalaryCap } from './league-settings';
 import { Team, League } from '@/lib/types';
 
+export interface TeamsResult {
+  teams: Team[];
+  // When the data being returned was actually pulled from Sleeper.
+  lastUpdated: Date | null;
+  // True when a refresh was attempted and failed, so this is the previous good
+  // build rather than fresh data.
+  stale: boolean;
+}
+
+// Module scope, not instance scope: API routes each construct their own
+// FantasyDataService, and one page load fans out into several routes. Sharing
+// the in-flight refresh means that load results in a single Sleeper pull.
+let inFlightRefresh: Promise<{ teams: Team[]; cachedAt: Date } | null> | null = null;
+
 export class FantasyDataService {
   private dataProcessor: DataProcessor;
   private sleeperService: SleeperService;
@@ -11,15 +25,15 @@ export class FantasyDataService {
 
   constructor() {
     this.dataProcessor = new DataProcessor();
-    
+
     // Get league ID from environment variable
     const leagueId = process.env.NEXT_PUBLIC_SLEEPER_LEAGUE_ID;
     if (!leagueId) {
       throw new Error('NEXT_PUBLIC_SLEEPER_LEAGUE_ID environment variable is required');
     }
-    
+
     this.sleeperService = new SleeperService(leagueId);
-    this.teamCache = new TeamCacheService(60); // Cache for 60 minutes
+    this.teamCache = new TeamCacheService(); // ~30s coalescing window, see TeamCacheService
   }
 
   async getLeagueData(): Promise<League | null> {
@@ -27,51 +41,86 @@ export class FantasyDataService {
   }
 
   async getAllTeams(): Promise<Team[]> {
+    return (await this.getTeamsWithMeta()).teams;
+  }
+
+  // Pulls fresh data from Sleeper on every request, apart from a short
+  // coalescing window that keeps one page load from hitting Sleeper once per
+  // API route. If anything about the pull fails we serve the last good build
+  // instead of an empty league -- the cache is never discarded for being old.
+  async getTeamsWithMeta(): Promise<TeamsResult> {
+    const cached = await this.teamCache.loadCachedTeams();
+
+    if (cached.teams.length > 0 && this.teamCache.isFresh(cached.cachedAt)) {
+      console.log('Using just-refreshed team data');
+      return { teams: cached.teams, lastUpdated: cached.cachedAt, stale: false };
+    }
+
+    const fresh = await this.refreshTeamsCoalesced();
+    if (fresh) {
+      return { teams: fresh.teams, lastUpdated: fresh.cachedAt, stale: false };
+    }
+
+    if (cached.teams.length > 0) {
+      console.warn(
+        `Refresh failed; serving cached teams from ${cached.cachedAt?.toISOString() ?? 'unknown time'}`
+      );
+      return { teams: cached.teams, lastUpdated: cached.cachedAt, stale: true };
+    }
+
+    console.error('Refresh failed and no cached teams exist');
+    return { teams: [], lastUpdated: null, stale: true };
+  }
+
+  // Concurrent callers share one refresh rather than each starting their own.
+  private refreshTeamsCoalesced(): Promise<{ teams: Team[]; cachedAt: Date } | null> {
+    if (!inFlightRefresh) {
+      inFlightRefresh = this.buildAndCacheTeams().finally(() => {
+        inFlightRefresh = null;
+      });
+    }
+    return inFlightRefresh;
+  }
+
+  // Returns null on any failure so the caller can fall back to cached data.
+  private async buildAndCacheTeams(): Promise<{ teams: Team[]; cachedAt: Date } | null> {
     try {
-      // First, try to load from cache
-      const cachedTeams = await this.teamCache.loadTeamsFromCache();
-      if (cachedTeams) {
-        console.log('Using cached team data');
-        return cachedTeams;
-      }
+      console.log('Refreshing team data from Sleeper');
 
-      console.log('Cache miss, generating fresh team data');
-
-      // First, process players with cap numbers from local files
       const processedPlayers = await this.dataProcessor.processPlayersWithCapNumbers();
-
       if (!processedPlayers) {
         console.error('Failed to process players with cap numbers');
-        return [];
+        return null;
       }
 
-      // While the league is pre_draft, the rosters endpoint still reflects last
-      // season's teams, so build from draft picks (keepers + live picks) instead.
       const [league, { salaryCap }] = await Promise.all([
         this.sleeperService.getLeague(),
         getLeagueSalaryCap(),
       ]);
-      const teams = league?.status === 'pre_draft' && league.draft_id
+
+      // A null league means Sleeper is unreachable, not that the league left
+      // pre_draft -- falling through would rebuild against the wrong endpoint.
+      if (!league) {
+        console.error('Sleeper league endpoint unavailable');
+        return null;
+      }
+
+      // While the league is pre_draft, the rosters endpoint still reflects last
+      // season's teams, so build from draft picks (keepers + live picks) instead.
+      const teams = league.status === 'pre_draft' && league.draft_id
         ? await this.sleeperService.buildTeamDataFromDraft(processedPlayers, league.draft_id, salaryCap)
         : await this.sleeperService.buildTeamData(processedPlayers, salaryCap);
 
-      // Save to cache for future requests
-      if (teams.length > 0) {
-        await this.teamCache.saveTeamsToCache(teams);
+      if (!teams || teams.length === 0) {
+        console.error('Sleeper returned no teams');
+        return null;
       }
-      
-      return teams;
+
+      const cachedAt = await this.teamCache.saveTeamsToCache(teams);
+      return { teams, cachedAt: cachedAt ?? new Date() };
     } catch (error) {
-      console.error('Error getting all teams:', error);
-      
-      // Fallback to cache even if expired
-      const cachedTeams = await this.teamCache.loadTeamsFromCache();
-      if (cachedTeams) {
-        console.log('Using expired cache as fallback');
-        return cachedTeams;
-      }
-      
-      return [];
+      console.error('Error refreshing team data:', error);
+      return null;
     }
   }
 
@@ -102,20 +151,22 @@ export class FantasyDataService {
   async forceRefreshAllData(): Promise<boolean> {
     try {
       console.log('Force refreshing all data...');
-      
+
       // Refresh player data first
       const playerRefresh = await this.refreshPlayerData();
       if (!playerRefresh) {
         return false;
       }
 
-      // Clear team cache to force rebuild
-      await this.teamCache.clearCache();
-      
-      // Rebuild team data with fresh player data
-      const teams = await this.getAllTeams();
-      
-      console.log(`Force refresh completed, rebuilt ${teams.length} teams`);
+      // Rebuild directly rather than through getAllTeams(), so an admin refresh
+      // always hits Sleeper instead of joining an in-flight or just-cached build.
+      const rebuilt = await this.buildAndCacheTeams();
+      if (!rebuilt) {
+        console.error('Force refresh could not rebuild teams; cache left untouched');
+        return false;
+      }
+
+      console.log(`Force refresh completed, rebuilt ${rebuilt.teams.length} teams`);
       return true;
     } catch (error) {
       console.error('Error force refreshing all data:', error);
@@ -136,7 +187,7 @@ export class FantasyDataService {
     };
   }> {
     const teams = await this.getAllTeams();
-    
+
     if (teams.length === 0) {
       return {
         totalTeams: 0,
@@ -206,14 +257,11 @@ export class FantasyDataService {
   async refreshTeamCache(): Promise<boolean> {
     try {
       console.log('Refreshing team cache...');
-      
-      // Clear existing cache
-      await this.teamCache.clearCache();
-      
-      // Force fresh data generation
-      const teams = await this.getAllTeams();
-      
-      return teams.length > 0;
+
+      // Only replace the cache once a rebuild succeeds -- clearing first would
+      // throw away good data if Sleeper happened to be down.
+      const rebuilt = await this.buildAndCacheTeams();
+      return rebuilt !== null;
     } catch (error) {
       console.error('Error refreshing team cache:', error);
       return false;
@@ -225,6 +273,7 @@ export class FantasyDataService {
     valid: boolean;
     ageMinutes: number;
     teamCount: number;
+    lastUpdated: string | null;
   } | null> {
     return await this.teamCache.getCacheInfo();
   }

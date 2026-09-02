@@ -11,6 +11,8 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  res.setHeader('Cache-Control', 'no-store');
+
   try {
     const stats = await fantasyDataService.getLeagueStats();
     res.status(200).json(stats);

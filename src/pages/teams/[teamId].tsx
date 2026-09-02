@@ -12,6 +12,7 @@ import PlayerActionsMenu from '@/components/players/PlayerActionsMenu';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Team } from '@/lib/types';
 import { formatIntAsCurrency } from '@/lib/utils/formatters';
+import DataFreshness from '@/components/common/DataFreshness';
 
 export default function TeamDetail() {
   const router = useRouter();
@@ -331,6 +332,7 @@ export default function TeamDetail() {
           )}
         </div>
       </main>
+      <DataFreshness />
     </div>
   );
 }

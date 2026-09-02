@@ -8,13 +8,13 @@ import TeamCard from '@/components/team/TeamCard';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Team } from '@/lib/types';
+import DataFreshness from '@/components/common/DataFreshness';
 
 export default function Dashboard() {
   const { user, isCommissioner, loading: authLoading } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [leagueStats, setLeagueStats] = useState<{
     totalTeams: number;
     averageCapUsage: number;
@@ -27,24 +27,6 @@ export default function Dashboard() {
       percentage: number;
     };
   } | null>(null);
-  const [cacheInfo, setCacheInfo] = useState<{
-    exists: boolean;
-    valid: boolean;
-    ageMinutes: number;
-    teamCount: number;
-  } | null>(null);
-
-  const fetchCacheInfo = async () => {
-    try {
-      const response = await fetch('/api/teams/cache');
-      if (response.ok) {
-        const info = await response.json();
-        setCacheInfo(info);
-      }
-    } catch (err) {
-      console.error('Error fetching cache info:', err);
-    }
-  };
 
   const fetchTeams = async () => {
     try {
@@ -52,17 +34,14 @@ export default function Dashboard() {
       setError(null);
 
       const response = await fetch('/api/teams');
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch teams');
       }
-      
+
       const data = await response.json();
       setTeams(data);
-      setLastUpdated(new Date());
-      
-      // Update cache info and league stats
-      await fetchCacheInfo();
+
       await fetchLeagueStats();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -87,8 +66,6 @@ export default function Dashboard() {
     if (authLoading) return;
     const initializeDashboard = async () => {
       await fetchTeams();
-      await fetchCacheInfo();
-      await fetchLeagueStats();
     };
     initializeDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,8 +106,8 @@ export default function Dashboard() {
 
   // Use API data if available, fallback to local calculations
   const teamsOverCap = leagueStats?.teamsOverCap ?? teams.filter(team => team.salary_used > team.salary_cap).length;
-  const averageCapUsage = leagueStats?.averageCapUsage ?? (teams.length > 0 
-    ? teams.reduce((sum, team) => sum + team.salary_used, 0) / teams.length 
+  const averageCapUsage = leagueStats?.averageCapUsage ?? (teams.length > 0
+    ? teams.reduce((sum, team) => sum + team.salary_used, 0) / teams.length
     : 0);
 
   return (
@@ -141,13 +118,13 @@ export default function Dashboard() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-        <Header
-          title="Fantasy League Dashboard"
-          subtitle={cacheInfo ? `Cache: ${cacheInfo.valid ? 'Valid' : 'Expired'} (${cacheInfo.ageMinutes}min old, ${cacheInfo.teamCount} teams)` : undefined}
-          lastUpdated={lastUpdated || undefined}
-          user={user}
-          isCommissioner={isCommissioner}
-        />      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Header
+        title="Fantasy League Dashboard"
+        user={user}
+        isCommissioner={isCommissioner}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
@@ -256,15 +233,26 @@ export default function Dashboard() {
         </div>
 
         {/* Teams Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {teams.map((team) => (
-            <TeamCard 
-              key={team.team_id} 
-              team={team}
-            />
-          ))}
-        </div>
+        {teams.length === 0 ? (
+          <div className="bg-sleeper-surface border border-sleeper-border rounded-xl p-6 text-center">
+            <p className="text-sm text-sleeper-text">No team data available.</p>
+            <p className="text-sm text-sleeper-muted mt-1">
+              Sleeper couldn&apos;t be reached and there is no saved data to fall back on. Try
+              reloading in a minute.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {teams.map((team) => (
+              <TeamCard
+                key={team.team_id}
+                team={team}
+              />
+            ))}
+          </div>
+        )}
       </main>
+      <DataFreshness />
     </div>
   );
 }

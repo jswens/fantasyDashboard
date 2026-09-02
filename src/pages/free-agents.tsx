@@ -4,6 +4,7 @@ import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import Header from '@/components/common/Header';
 import FreeAgentsDisplay from '@/components/free-agents/FreeAgentsDisplay';
 import Loading from '@/components/common/Loading';
+import DataFreshness from '@/components/common/DataFreshness';
 
 export default function FreeAgentsPage() {
   const { user, isAdmin, isCommissioner, loading } = useAuth();
@@ -23,6 +24,7 @@ export default function FreeAgentsPage() {
       </Head>
       <Header title="Free Agents" user={user} isCommissioner={isCommissioner} />
       <FreeAgentsDisplay user={user} isAdmin={isAdmin} isCommissioner={isCommissioner} />
+      <DataFreshness />
     </>
   );
 }
