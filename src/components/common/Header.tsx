@@ -15,6 +15,7 @@ interface HeaderProps {
 
 const NAV_LINKS = [
   { href: '/', label: 'Dashboard' },
+  { href: '/matchups', label: 'Matchups' },
   { href: '/free-agents', label: 'Free Agents' },
   { href: '/players', label: 'Players' },
 ];

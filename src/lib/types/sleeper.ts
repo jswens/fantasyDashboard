@@ -39,6 +39,36 @@ export interface SleeperDraftPick {
   is_keeper: boolean | null;
 }
 
+// GET /league/{id}/matchups/{week} -- one entry per roster for that week, two
+// entries per head-to-head matchup (same matchup_id).
+export interface SleeperMatchup {
+  // null for a roster with no matchup this week (bye, or the week hasn't
+  // been scheduled yet).
+  matchup_id: number | null;
+  roster_id: number;
+  points: number;
+  // Commissioner-overridden score; when set, this is what Sleeper itself
+  // displays instead of `points`.
+  custom_points: number | null;
+  // Full roster (starters + bench) for this matchup entry.
+  players: string[] | null;
+  // starters[i] corresponds to the league's roster_positions[i] (after
+  // filtering out 'BN'). An empty slot is the literal string "0".
+  starters: string[] | null;
+  starters_points: number[] | null;
+  // Keyed by player_id, covers bench too -- the source of truth for a
+  // player's points this week (see MatchupService).
+  players_points: Record<string, number> | null;
+}
+
+// GET /state/nfl -- NOT league-scoped, Sleeper's global NFL week/season clock.
+export interface SleeperNflState {
+  week: number;
+  season: string;
+  season_type: string;
+  display_week: number;
+}
+
 // Cap numbers data structure
 export interface CapNumberRow {
   lookup_key: string;

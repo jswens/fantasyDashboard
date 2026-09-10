@@ -1,5 +1,5 @@
 import { Team, Player, League } from '@/lib/types';
-import { SleeperUser, SleeperRoster, SleeperPlayer, SleeperDraftPick } from '@/lib/types/sleeper';
+import { SleeperUser, SleeperRoster, SleeperPlayer, SleeperDraftPick, SleeperMatchup, SleeperNflState } from '@/lib/types/sleeper';
 import { getTeamAvatarUrl } from '@/lib/utils/images';
 
 function resolveAvatarUrl(user: SleeperUser): string | null {
@@ -77,6 +77,38 @@ export class SleeperService {
       return await response.json();
     } catch (error) {
       console.error('Error fetching rosters:', error);
+      return null;
+    }
+  }
+
+  // Returns null (not []) on failure so callers can tell an outage apart from
+  // a week that legitimately has no matchups yet (e.g. before the season's
+  // schedule is generated) and fall back to cached data instead of publishing
+  // an empty scoreboard.
+  async getMatchups(week: number): Promise<SleeperMatchup[] | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/league/${this.leagueId}/matchups/${week}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching matchups:', error);
+      return null;
+    }
+  }
+
+  // Not league-scoped -- this is Sleeper's global NFL week/season clock, used
+  // to know which week is "current" without waiting on the league endpoint.
+  async getNflState(): Promise<SleeperNflState | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/state/nfl`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching NFL state:', error);
       return null;
     }
   }
