@@ -33,6 +33,9 @@ export default function MatchupsPage() {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [nowTick, setNowTick] = useState(() => Date.now());
+  // Which matchup_ids are expanded. Keyed by id (not index) so the open cards
+  // survive an auto-refresh replacing the scoreboard object underneath them.
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(() => new Set());
   const fetchInFlight = useRef(false);
   // Monotonic request id. A week change issued while a poll is still running
   // must not be dropped, but its response can arrive out of order -- so the
@@ -77,6 +80,13 @@ export default function MatchupsPage() {
     fetchScoreboard(requestedWeek);
   }, [router.isReady, requestedWeek, fetchScoreboard]);
 
+  // Collapse everything when the week changes: matchup_ids repeat every week
+  // (1-6), so carrying the open set over would leave a different pairing
+  // expanded than the one the reader opened.
+  useEffect(() => {
+    setExpandedIds(new Set());
+  }, [requestedWeek]);
+
   // Restore the persisted auto-refresh preference once the page mounts.
   // Off by default per spec -- localStorage absence (or a blocked store)
   // just means it stays off, which is already the initial state.
@@ -117,6 +127,15 @@ export default function MatchupsPage() {
       // best-effort persistence only
     }
   };
+
+  const toggleMatchup = useCallback((matchupId: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(matchupId)) next.delete(matchupId);
+      else next.add(matchupId);
+      return next;
+    });
+  }, []);
 
   const goToWeek = (week: number) => {
     if (!scoreboard) return;
@@ -188,6 +207,11 @@ export default function MatchupsPage() {
 
   const secondsAgo = Math.max(0, Math.round((nowTick - new Date(scoreboard.fetched_at).getTime()) / 1000));
 
+  const allExpanded =
+    scoreboard.matchups.length > 0 && scoreboard.matchups.every((m) => expandedIds.has(m.matchup_id));
+  const toggleAll = () =>
+    setExpandedIds(allExpanded ? new Set() : new Set(scoreboard.matchups.map((m) => m.matchup_id)));
+
   return (
     <div className="min-h-screen bg-sleeper-bg">
       <Head>
@@ -209,6 +233,14 @@ export default function MatchupsPage() {
           </div>
 
           <div className="flex flex-col items-start gap-2 sm:items-end">
+            <button
+              type="button"
+              onClick={toggleAll}
+              disabled={scoreboard.matchups.length === 0}
+              className="rounded-full border border-sleeper-border px-3 py-1.5 text-xs font-semibold text-sleeper-muted transition-colors hover:border-sleeper-teal/50 hover:text-sleeper-text disabled:opacity-40"
+            >
+              {allExpanded ? 'Collapse all' : 'Expand all'}
+            </button>
             <label className="flex items-center gap-2 text-sm text-sleeper-muted">
               <input
                 type="checkbox"
@@ -251,7 +283,15 @@ export default function MatchupsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {sortedMatchups.map((matchup) => (
-              <MatchupCard key={matchup.matchup_id} matchup={matchup} week={scoreboard.week} status={status} />
+              <MatchupCard
+                key={matchup.matchup_id}
+                matchup={matchup}
+                week={scoreboard.week}
+                status={status}
+                startingSlots={scoreboard.starting_slots ?? []}
+                isExpanded={expandedIds.has(matchup.matchup_id)}
+                onToggle={toggleMatchup}
+              />
             ))}
           </div>
         )}

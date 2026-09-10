@@ -13,7 +13,13 @@ import SlotRowView from '@/components/matchup/SlotRowView';
 import SortControl from '@/components/matchup/SortControl';
 import BenchList from '@/components/matchup/BenchList';
 import StaleNotice from '@/components/matchup/StaleNotice';
-import { bestWorstEligibleStarters, buildSlotRows, SlotSortMode, sortSlotRows } from '@/components/matchup/slots';
+import {
+  bestWorstEligibleStarters,
+  buildSlotRows,
+  highlightFor,
+  SlotSortMode,
+  sortSlotRows,
+} from '@/components/matchup/slots';
 
 // router.query values are string | string[] | undefined depending on how
 // Next parses the route -- collapse to a single string up front.
@@ -81,16 +87,6 @@ export default function MatchupDetailPage() {
     () => (matchup ? bestWorstEligibleStarters(matchup.sides[1].players) : { bestId: null, worstId: null }),
     [matchup]
   );
-
-  const highlightFor = (
-    playerId: string | undefined,
-    highlights: { bestId: string | null; worstId: string | null }
-  ): 'best' | 'worst' | null => {
-    if (!playerId) return null;
-    if (playerId === highlights.bestId) return 'best';
-    if (playerId === highlights.worstId) return 'worst';
-    return null;
-  };
 
   if (authLoading || (loading && !scoreboard)) {
     return <Loading />;

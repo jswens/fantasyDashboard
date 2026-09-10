@@ -79,6 +79,18 @@ export interface EfficiencyHighlights {
   worstId: string | null;
 }
 
+// Shared by the expandable scoreboard card and the full drill-in page so the
+// two can't drift on which player gets marked.
+export function highlightFor(
+  playerId: string | undefined,
+  highlights: EfficiencyHighlights
+): 'best' | 'worst' | null {
+  if (!playerId) return null;
+  if (playerId === highlights.bestId) return 'best';
+  if (playerId === highlights.worstId) return 'worst';
+  return null;
+}
+
 // Best/worst PPM among starters, restricted to cap-eligible players (see
 // isEfficiencyEligible) so a $0 or near-$0 flier can't win "most efficient"
 // by default. Skips the highlight entirely with fewer than two eligible
