@@ -68,6 +68,18 @@ GOOGLE_SHEETS_API_KEY=your_api_key_here
 GOOGLE_SHEET_ID=1t6us1naBjjpU1k5Ew-ndCLjq7DkblbbBpXpArH6czUs
 ```
 
+### Dev test login (local only)
+Adds a "Dev test login" button to the sign-in screen that signs in as a fixed
+Firebase user (`dev-test-user`) without the Google popup -- used for browser
+testing. Add to `.env.local`:
+```
+NEXT_PUBLIC_DEV_TEST_LOGIN=true
+```
+It only works under `next dev` and only for requests from localhost; the route
+(`/api/auth/dev-login`) returns 404 otherwise, and the button is compiled out of
+production builds. The test user has no admin/commissioner role unless its uid
+is added to the `admins` / `commissioners` Firestore collections.
+
 ### Data Refresh Process
 1. **Automatic**: API calls refresh data from Sleeper on each request
 2. **Manual**: Use refresh button in dashboard header

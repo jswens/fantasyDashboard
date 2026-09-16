@@ -1,7 +1,12 @@
 import { useState } from 'react';
-import { signInWithPopup, signOut } from 'firebase/auth';
+import { signInWithCustomToken, signInWithPopup, signOut, updateProfile } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { User } from 'firebase/auth';
+
+// Inlined at build time, so the dev button is compiled out of production
+// bundles entirely. The API route enforces the same gates server-side.
+const DEV_TEST_LOGIN_ENABLED =
+  process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_DEV_TEST_LOGIN === 'true';
 
 interface GoogleSignInProps {
   user: User | null;
@@ -18,6 +23,25 @@ export default function GoogleSignIn({ user }: GoogleSignInProps) {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
       setError('Sign-in failed. Please try again.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDevSignIn = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/dev-login', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? 'Dev login unavailable');
+      const credential = await signInWithCustomToken(auth, data.token);
+      if (!credential.user.displayName) {
+        await updateProfile(credential.user, { displayName: 'Dev Test User' });
+      }
+    } catch (err) {
+      setError('Dev test login failed. See console.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -89,6 +113,16 @@ export default function GoogleSignIn({ user }: GoogleSignInProps) {
           </svg>
           {loading ? 'Signing in...' : 'Sign in with Google'}
         </button>
+
+        {DEV_TEST_LOGIN_ENABLED && (
+          <button
+            onClick={handleDevSignIn}
+            disabled={loading}
+            className="w-full px-4 py-2 border border-dashed border-sleeper-border rounded-full text-xs font-semibold text-sleeper-muted hover:text-sleeper-text disabled:opacity-50"
+          >
+            Dev test login (localhost only)
+          </button>
+        )}
       </div>
     </div>
   );

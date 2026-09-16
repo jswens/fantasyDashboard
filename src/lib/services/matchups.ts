@@ -9,11 +9,23 @@ import { FantasyDataService } from './fantasy-data';
 import { MatchupCacheService } from './matchup-cache';
 import { pointsPerMillion } from '@/lib/utils/efficiency';
 import { Team, Player, League } from '@/lib/types';
-import { WeekScoreboard, WeekMatchup, MatchupSide, MatchupPlayer } from '@/lib/types/matchup';
+import {
+  WeekScoreboard,
+  WeekMatchup,
+  MatchupSide,
+  MatchupPlayer,
+  SeasonTotals,
+  SeasonTeamTotal,
+} from '@/lib/types/matchup';
 import { SleeperMatchup, SleeperNflState } from '@/lib/types/sleeper';
 
 // Used only when a league has never set (or has an invalid) playoff_week_start.
 const DEFAULT_LAST_REGULAR_SEASON_WEEK = 14;
+
+// How long a completed week's cached scoreboard is served without a rebuild.
+// Long enough that summing a season is cheap, short enough that a Tuesday stat
+// correction still shows up the same day.
+const FINAL_WEEK_FRESHNESS_MS = 60 * 60 * 1000;
 
 // Only reached if Sleeper's /state/nfl endpoint is unreachable on the very
 // first request this process ever makes -- i.e. there's no cached scoreboard
@@ -54,6 +66,39 @@ export class MatchupService {
     return this.getScoreboard(week, state);
   }
 
+  // Sums each team's points (Sleeper's side total, i.e. starters only) over
+  // weeks 1..throughWeek. Built from the per-week scoreboards so it shares
+  // their cache; a finished week's cache stays fresh far longer than a live
+  // one (see FINAL_WEEK_FRESHNESS_MS), so this is mostly Firestore reads.
+  async getSeasonTotals(throughWeek: number): Promise<SeasonTotals> {
+    const weeks = Array.from({ length: throughWeek }, (_, i) => i + 1);
+    const scoreboards = await Promise.all(weeks.map(week => this.getScoreboard(week)));
+
+    const totals = new Map<string, SeasonTeamTotal>();
+    for (const scoreboard of scoreboards) {
+      const sides = scoreboard.matchups.flatMap(m => m.sides).concat(scoreboard.unmatched);
+      for (const side of sides) {
+        const existing = totals.get(side.team_id);
+        // Later weeks overwrite name/avatar so a mid-season rename shows the
+        // current name rather than the week 1 one.
+        totals.set(side.team_id, {
+          team_id: side.team_id,
+          team_name: side.team_name,
+          owner_name: side.owner_name,
+          avatar_url: side.avatar_url,
+          total_points: (existing?.total_points ?? 0) + side.points,
+        });
+      }
+    }
+
+    return {
+      season: scoreboards[scoreboards.length - 1]?.season ?? FALLBACK_SEASON,
+      through_week: throughWeek,
+      teams: [...totals.values()].sort((a, b) => b.total_points - a.total_points),
+      stale: scoreboards.some(s => s.stale),
+    };
+  }
+
   // Never throws: every failure path below falls back to cached data, and
   // only an empty cache produces the empty/stale scoreboard at the bottom.
   async getScoreboard(week: number, knownState?: SleeperNflState | null): Promise<WeekScoreboard> {
@@ -61,7 +106,7 @@ export class MatchupService {
     // served without any Sleeper call at all. The season is resolved from the
     // league during a rebuild instead (see buildAndCacheScoreboard).
     const cached = await this.matchupCache.loadCachedScoreboard(this.leagueId, week);
-    if (cached.scoreboard && this.matchupCache.isFresh(cached.cachedAt)) {
+    if (cached.scoreboard && this.isCacheUsable(cached.scoreboard, cached.cachedAt)) {
       return cached.scoreboard;
     }
 
@@ -94,6 +139,19 @@ export class MatchupService {
       is_final: false,
       stale: true,
     };
+  }
+
+  // A finished week only moves on stat corrections, so there's no reason to
+  // re-pull it from Sleeper every minute -- which season totals would
+  // otherwise do for every past week on every page load.
+  private isCacheUsable(scoreboard: WeekScoreboard, cachedAt: Date | null): boolean {
+    if (this.matchupCache.isFresh(cachedAt)) return true;
+    return (
+      scoreboard.is_final &&
+      !scoreboard.stale &&
+      cachedAt !== null &&
+      Date.now() - cachedAt.getTime() <= FINAL_WEEK_FRESHNESS_MS
+    );
   }
 
   private rebuildCoalesced(

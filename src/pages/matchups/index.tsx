@@ -6,12 +6,13 @@ import Loading from '@/components/common/Loading';
 import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import DataFreshness from '@/components/common/DataFreshness';
 import { useAuth } from '@/lib/hooks/useAuth';
-import type { WeekScoreboard } from '@/lib/types/matchup';
+import type { SeasonTotals, WeekScoreboard } from '@/lib/types/matchup';
 import { formatPoints } from '@/lib/utils/efficiency';
 import WeekSelector from '@/components/matchup/WeekSelector';
 import MatchupCard, { MatchupStatus } from '@/components/matchup/MatchupCard';
 import StaleNotice from '@/components/matchup/StaleNotice';
 import UnmatchedSides from '@/components/matchup/UnmatchedSides';
+import WeekLeaders, { LeaderRow } from '@/components/matchup/WeekLeaders';
 
 const AUTO_REFRESH_STORAGE_KEY = 'matchups:auto-refresh';
 const AUTO_REFRESH_INTERVAL_MS = 60_000;
@@ -36,6 +37,11 @@ export default function MatchupsPage() {
   // Which matchup_ids are expanded. Keyed by id (not index) so the open cards
   // survive an auto-refresh replacing the scoreboard object underneath them.
   const [expandedIds, setExpandedIds] = useState<Set<number>>(() => new Set());
+  // Season totals for the weeks BEFORE the one on screen. The on-screen week is
+  // added client-side from the scoreboard, so live polls update the season
+  // leaderboard without refetching every past week.
+  const [priorTotals, setPriorTotals] = useState<SeasonTotals | null>(null);
+  const [priorTotalsError, setPriorTotalsError] = useState<string | null>(null);
   const fetchInFlight = useRef(false);
   // Monotonic request id. A week change issued while a poll is still running
   // must not be dropped, but its response can arrive out of order -- so the
@@ -86,6 +92,31 @@ export default function MatchupsPage() {
   useEffect(() => {
     setExpandedIds(new Set());
   }, [requestedWeek]);
+
+  const scoreboardWeek = scoreboard?.week ?? null;
+  useEffect(() => {
+    setPriorTotals(null);
+    setPriorTotalsError(null);
+    if (scoreboardWeek === null || scoreboardWeek <= 1) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch(`/api/matchups/totals?through=${scoreboardWeek - 1}`);
+        const data = await response.json();
+        if (cancelled) return;
+        if (!response.ok) {
+          throw new Error((data as { error?: string })?.error ?? 'Failed to load season totals');
+        }
+        setPriorTotals(data as SeasonTotals);
+      } catch (err) {
+        if (cancelled) return;
+        setPriorTotalsError(err instanceof Error ? err.message : 'Failed to load season totals');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [scoreboardWeek]);
 
   // Restore the persisted auto-refresh preference once the page mounts.
   // Off by default per spec -- localStorage absence (or a blocked store)
@@ -205,6 +236,44 @@ export default function MatchupsPage() {
     status === 'upcoming' ? a.matchup_id - b.matchup_id : a.margin - b.margin
   );
 
+  const weekRows: LeaderRow[] = allSides.map((side) => ({
+    team_id: side.team_id,
+    team_name: side.team_name,
+    owner_name: side.owner_name,
+    avatar_url: side.avatar_url,
+    points: side.points,
+  }));
+
+  // An upcoming week has nothing to add yet, so the season board stops at
+  // the week before it.
+  const includeThisWeek = status !== 'upcoming';
+  const seasonThroughWeek = includeThisWeek ? scoreboard.week : scoreboard.week - 1;
+  let seasonRows: LeaderRow[] | null = null;
+  if (scoreboard.week <= 1) {
+    seasonRows = includeThisWeek ? weekRows : [];
+  } else if (priorTotals && priorTotals.through_week === scoreboard.week - 1) {
+    const byTeam = new Map<string, LeaderRow>(
+      priorTotals.teams.map((t) => [
+        t.team_id,
+        {
+          team_id: t.team_id,
+          team_name: t.team_name,
+          owner_name: t.owner_name,
+          avatar_url: t.avatar_url,
+          points: t.total_points,
+        },
+      ])
+    );
+    if (includeThisWeek) {
+      for (const row of weekRows) {
+        const prior = byTeam.get(row.team_id);
+        // This week's name/avatar win, same as the server-side sum.
+        byTeam.set(row.team_id, { ...row, points: (prior?.points ?? 0) + row.points });
+      }
+    }
+    seasonRows = [...byTeam.values()];
+  }
+
   const secondsAgo = Math.max(0, Math.round((nowTick - new Date(scoreboard.fetched_at).getTime()) / 1000));
 
   const allExpanded =
@@ -271,6 +340,16 @@ export default function MatchupsPage() {
         </div>
 
         {scoreboard.stale && <StaleNotice />}
+
+        <WeekLeaders
+          key={scoreboard.week}
+          week={scoreboard.week}
+          status={status}
+          weekRows={weekRows}
+          seasonRows={seasonRows}
+          seasonThroughWeek={seasonThroughWeek}
+          seasonError={priorTotalsError}
+        />
 
         {scoreboard.matchups.length === 0 ? (
           <div className="bg-sleeper-surface border border-sleeper-border rounded-xl p-6 text-center">

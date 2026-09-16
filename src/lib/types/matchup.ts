@@ -56,6 +56,24 @@ export interface WeekMatchup {
   leader_team_id: string | null;
 }
 
+// One team's summed starter points over weeks 1..through_week.
+export interface SeasonTeamTotal {
+  team_id: string;
+  team_name: string;
+  owner_name: string;
+  avatar_url: string | null;
+  total_points: number;
+}
+
+// GET /api/matchups/totals?through=N
+export interface SeasonTotals {
+  season: string;
+  through_week: number;
+  teams: SeasonTeamTotal[];
+  // At least one of the summed weeks came from a stale (fallback) scoreboard.
+  stale: boolean;
+}
+
 export interface WeekScoreboard {
   season: string;
   week: number;
