@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from 'firebase/auth';
 import PlayerActionsMenu from '@/components/players/PlayerActionsMenu';
+import UntrackedPlayersPanel from '@/components/players/UntrackedPlayersPanel';
 
 interface PlayerSearchResult {
   playerId: string;
@@ -112,6 +113,10 @@ export default function PlayerSearch({ user, isCommissioner, isAdmin = false, ze
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {canEdit && !zeroCapOnly && (
+          <UntrackedPlayersPanel user={user} onPlayerAdded={runSearch} />
+        )}
+
         {!zeroCapOnly && (
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <div className="relative w-full max-w-md">

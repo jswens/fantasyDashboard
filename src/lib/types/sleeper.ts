@@ -37,6 +37,26 @@ export interface SleeperDraftPick {
   round: number;
   pick_no: number;
   is_keeper: boolean | null;
+  // Sleeper's snapshot of the player at pick time (all values are strings).
+  metadata?: {
+    first_name?: string;
+    last_name?: string;
+    position?: string;
+    team?: string;
+  };
+}
+
+// One entry from GET /players/nfl, trimmed to the fields we read.
+export interface SleeperRawPlayer {
+  player_id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  full_name?: string | null;
+  team?: string | null;
+  position?: string | null;
+  fantasy_positions?: string[] | null;
+  years_exp?: number | null;
+  active?: boolean;
 }
 
 // GET /league/{id}/matchups/{week} -- one entry per roster for that week, two

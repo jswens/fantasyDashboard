@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/hooks/useAuth';
 import { Team } from '@/lib/types';
 import { formatIntAsCurrency } from '@/lib/utils/formatters';
 import DataFreshness from '@/components/common/DataFreshness';
+import UntrackedPlayersAlert from '@/components/common/UntrackedPlayersAlert';
 
 export default function TeamDetail() {
   const router = useRouter();
@@ -126,6 +127,8 @@ export default function TeamDetail() {
             Back to Dashboard
           </Link>
         </div>
+
+        <UntrackedPlayersAlert teams={[team]} canEdit={canEdit} hideTeamNames />
 
         {/* Team Identity */}
         <div className="flex items-center space-x-4 mb-8">

@@ -2,6 +2,7 @@ import { DataProcessor } from './data-processor';
 import { SleeperService } from './sleeper-api';
 import { TeamCacheService } from './team-cache';
 import { getLeagueSalaryCap } from './league-settings';
+import { resolveUntrackedPlayerNames } from './untracked-players';
 import { Team, League } from '@/lib/types';
 
 export interface TeamsResult {
@@ -114,6 +115,18 @@ export class FantasyDataService {
       if (!teams || teams.length === 0) {
         console.error('Sleeper returned no teams');
         return null;
+      }
+
+      // Rostered players with no players/{id} doc aren't counted anywhere --
+      // name them so the dashboard can flag them instead of silently dropping them.
+      const untrackedCount = teams.reduce((n, t) => n + (t.untracked_players?.length ?? 0), 0);
+      if (untrackedCount > 0) {
+        await resolveUntrackedPlayerNames(teams);
+        for (const t of teams) {
+          for (const p of t.untracked_players ?? []) {
+            console.warn(`Untracked rostered player on ${t.team_name}: ${p.full_name ?? 'unknown'} (${p.player_id})`);
+          }
+        }
       }
 
       const cachedAt = await this.teamCache.saveTeamsToCache(teams);

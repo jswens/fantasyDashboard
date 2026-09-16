@@ -1,5 +1,5 @@
-import { Team, Player, League } from '@/lib/types';
-import { SleeperUser, SleeperRoster, SleeperPlayer, SleeperDraftPick, SleeperMatchup, SleeperNflState } from '@/lib/types/sleeper';
+import { Team, Player, League, UntrackedRosterPlayer } from '@/lib/types';
+import { SleeperUser, SleeperRoster, SleeperPlayer, SleeperDraftPick, SleeperMatchup, SleeperNflState, SleeperRawPlayer } from '@/lib/types/sleeper';
 import { getTeamAvatarUrl } from '@/lib/utils/images';
 
 function resolveAvatarUrl(user: SleeperUser): string | null {
@@ -113,6 +113,22 @@ export class SleeperService {
     }
   }
 
+  // Sleeper's full NFL player dump (~5MB). Sleeper asks that this be called at
+  // most about once a day, so only use it for one-off lookups -- see
+  // src/lib/services/untracked-players.ts, which caches what it needs.
+  async getAllPlayers(): Promise<Record<string, SleeperRawPlayer> | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/players/nfl`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching Sleeper player list:', error);
+      return null;
+    }
+  }
+
   // Returns null (not []) when Sleeper is unreachable, so callers can tell an
   // outage apart from a league that genuinely has no teams and fall back to
   // cached data instead of publishing an empty league.
@@ -133,6 +149,7 @@ export class SleeperService {
 
       // Build roster from player IDs
       const rosterPlayers: Player[] = [];
+      const untrackedPlayers: UntrackedRosterPlayer[] = [];
       let totalSalaryCap = 0;
 
       if (roster.players) {
@@ -157,6 +174,8 @@ export class SleeperService {
             
             rosterPlayers.push(playerData);
             totalSalaryCap += player.cap_value || 0;
+          } else {
+            untrackedPlayers.push({ player_id: playerId, full_name: null, position: null, nfl_team: null });
           }
         }
       }
@@ -176,7 +195,8 @@ export class SleeperService {
         salary_used: totalSalaryCap,
         salary_remaining: salaryCap - totalSalaryCap,
         roster_size: rosterPlayers.length,
-        max_roster_size: 25
+        max_roster_size: 25,
+        untracked_players: untrackedPlayers,
       };
 
       teams.push(team);
@@ -205,11 +225,13 @@ export class SleeperService {
     }
 
     const draftedPlayerIdsByRoster = new Map<number, string[]>();
+    const pickMetaByPlayerId = new Map<string, NonNullable<SleeperDraftPick['metadata']>>();
     for (const pick of picks) {
       if (!pick.player_id) continue;
       const playerIds = draftedPlayerIdsByRoster.get(pick.roster_id) ?? [];
       playerIds.push(pick.player_id);
       draftedPlayerIdsByRoster.set(pick.roster_id, playerIds);
+      if (pick.metadata) pickMetaByPlayerId.set(pick.player_id, pick.metadata);
     }
 
     const teams: Team[] = [];
@@ -220,6 +242,7 @@ export class SleeperService {
       if (!user) continue;
 
       const rosterPlayers: Player[] = [];
+      const untrackedPlayers: UntrackedRosterPlayer[] = [];
       let totalSalaryCap = 0;
 
       const draftedPlayerIds = draftedPlayerIdsByRoster.get(roster.roster_id) ?? [];
@@ -244,6 +267,14 @@ export class SleeperService {
 
           rosterPlayers.push(playerData);
           totalSalaryCap += player.cap_value || 0;
+        } else {
+          const meta = pickMetaByPlayerId.get(playerId);
+          untrackedPlayers.push({
+            player_id: playerId,
+            full_name: meta ? `${meta.first_name ?? ''} ${meta.last_name ?? ''}`.trim() || null : null,
+            position: meta?.position || null,
+            nfl_team: meta?.team || null,
+          });
         }
       }
 
@@ -262,7 +293,8 @@ export class SleeperService {
         salary_used: totalSalaryCap,
         salary_remaining: salaryCap - totalSalaryCap,
         roster_size: rosterPlayers.length,
-        max_roster_size: 25
+        max_roster_size: 25,
+        untracked_players: untrackedPlayers,
       };
 
       teams.push(team);

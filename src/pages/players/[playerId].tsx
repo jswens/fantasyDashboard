@@ -289,8 +289,8 @@ export default function PlayerDetailPage() {
                               {formatAuditValue(entry.field, entry.previousValue)} → {formatAuditValue(entry.field, entry.newValue)}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${entry.source === 'season-import' ? 'bg-sleeper-teal-muted text-sleeper-teal' : 'bg-sleeper-purple/15 text-sleeper-purple'}`}>
-                                {entry.source === 'season-import' ? 'Season import' : 'Manual edit'}
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${entry.source === 'season-import' ? 'bg-sleeper-teal-muted text-sleeper-teal' : entry.source === 'manual-add' ? 'bg-sleeper-yellow/15 text-sleeper-yellow' : 'bg-sleeper-purple/15 text-sleeper-purple'}`}>
+                                {entry.source === 'season-import' ? 'Season import' : entry.source === 'manual-add' ? 'Added from Sleeper' : 'Manual edit'}
                               </span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-sleeper-muted">{entry.email}</td>

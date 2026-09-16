@@ -17,7 +17,7 @@ export interface PlayerAuditEntry {
   field: PlayerEditableField;
   previousValue: string | number | null;
   newValue: string | number | null;
-  source: 'manual-edit' | 'season-import';
+  source: 'manual-edit' | 'season-import' | 'manual-add';
 }
 
 /** Body for PATCH /api/players/[playerId]. Only include fields being changed. */

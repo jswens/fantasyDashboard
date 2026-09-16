@@ -12,7 +12,7 @@ export interface PlayerPoolEntry {
   lastName: string;
   position: string;
   fantasyPositions: string[];
-  team: string;
+  team: string | null; // null = free agent (kept only when rostered in the league)
   searchName: string;
   byeWeek: number | null;
   capHit: number | null;

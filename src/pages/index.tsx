@@ -9,9 +9,10 @@ import GoogleSignIn from '@/components/auth/GoogleSignIn';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { Team } from '@/lib/types';
 import DataFreshness from '@/components/common/DataFreshness';
+import UntrackedPlayersAlert from '@/components/common/UntrackedPlayersAlert';
 
 export default function Dashboard() {
-  const { user, isCommissioner, loading: authLoading } = useAuth();
+  const { user, isAdmin, isCommissioner, loading: authLoading } = useAuth();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +126,8 @@ export default function Dashboard() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <UntrackedPlayersAlert teams={teams} canEdit={isAdmin || isCommissioner} />
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
