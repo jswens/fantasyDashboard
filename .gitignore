@@ -39,5 +39,8 @@ next-env.d.ts
 .vscode/
 .idea/
 
+# local Sleeper API snapshots
+data/sleeper/
+
 # OS
 Thumbs.db

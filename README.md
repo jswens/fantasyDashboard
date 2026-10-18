@@ -58,6 +58,19 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the dashboard.
 
+### Pull a local Sleeper snapshot
+
+With `NEXT_PUBLIC_SLEEPER_LEAGUE_ID` set, run:
+
+```bash
+npm run sync:sleeper
+```
+
+This writes the current league, users, full player pool, rosters, and derived
+free-agent list to `data/sleeper/current/`. The snapshot is local-only and is
+ignored by git. Free agents are active Sleeper players with a position who are
+not on any current roster.
+
 ## Development Status
 
 ### ✅ Completed Tasks
