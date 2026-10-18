@@ -26,10 +26,12 @@ interface FreeAgent {
   team: string | null;
   cap_value: number;
   cap_value_formatted: string;
-  ranking: number;
   projection?: number;
   tier?: number;
   tierPosition?: number;
+  // The rank straight out of the imported rankings file, which ranks rostered
+  // and free-agent players alike — so it is already a league-wide rank, and no
+  // rank is derived from this list's own ordering.
   expertRank?: number;
   expertEcr?: number;
   expertVsEcr?: number;
@@ -44,6 +46,8 @@ interface FreeAgentsResponse {
   data?: FreeAgentsByPosition;
   message: string;
   totalFreeAgents?: number;
+  /** Free agents at or below the requested cap ceiling; equal to totalFreeAgents when none was set. */
+  affordableFreeAgents?: number;
 }
 
 async function identifyFreeAgents(): Promise<FreeAgent[]> {
@@ -180,8 +184,9 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
       return b.player.cap_value - a.player.cap_value;
     });
 
-    // Build final free agents array with rankings
-    freeAgentEntries.forEach(({ playerId, player, playerName, projection, tier, tierPosition, expertRank, expertEcr, expertVsEcr }, index) => {
+    // Build the final list. The order comes from the sort above; the rank shown
+    // to the user is expertRank, which the imported file supplies.
+    freeAgentEntries.forEach(({ playerId, player, playerName, projection, tier, tierPosition, expertRank, expertEcr, expertVsEcr }) => {
       freeAgents.push({
         player_id: playerId,
         full_name: playerName,
@@ -189,7 +194,6 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
         team: player.team,
         cap_value: player.cap_value,
         cap_value_formatted: player.cap_value_formatted,
-        ranking: index + 1,
         projection,
         tier,
         tierPosition,
@@ -204,6 +208,17 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
     console.error('Error reading processed players cache:', error);
     throw new Error('Failed to load player data');
   }
+}
+
+/** Reads the optional ?maxCap= dollar ceiling; anything unusable means no filter. */
+function parseMaxCap(raw: string | string[] | undefined): number | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return null;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+
+  return parsed;
 }
 
 function groupByPosition(freeAgents: FreeAgent[]): FreeAgentsByPosition {
@@ -241,14 +256,23 @@ export default async function handler(
   try {
     // Get free agents
     const freeAgents = await identifyFreeAgents();
-    
+
+    // An optional cap ceiling, applied before the per-position slice below so a
+    // small budget still surfaces the best players it can actually afford
+    // rather than filtering an already-truncated top 10 down to nothing.
+    const maxCap = parseMaxCap(req.query.maxCap);
+    const affordable = maxCap === null
+      ? freeAgents
+      : freeAgents.filter(player => player.cap_value <= maxCap);
+
     // Group by position
-    const freeAgentsByPosition = groupByPosition(freeAgents);
+    const freeAgentsByPosition = groupByPosition(affordable);
 
     return res.status(200).json({
       success: true,
       data: freeAgentsByPosition,
       totalFreeAgents: freeAgents.length,
+      affordableFreeAgents: affordable.length,
       message: 'Free agents retrieved successfully'
     });
 

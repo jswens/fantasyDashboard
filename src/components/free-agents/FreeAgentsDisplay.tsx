@@ -12,7 +12,6 @@ interface FreeAgent {
   team: string | null;
   cap_value: number;
   cap_value_formatted: string;
-  ranking: number;
   projection?: number;
   tier?: number;
   tierPosition?: number;
@@ -22,6 +21,33 @@ interface FreeAgent {
 }
 
 type ImportFormat = 'projections' | 'expertRankings';
+
+/** Cap ceilings worth one click; cap values in this league run ~$0.9M to ~$48M. */
+const CAP_PRESETS = [
+  { label: '$1M', value: 1_000_000 },
+  { label: '$2.5M', value: 2_500_000 },
+  { label: '$5M', value: 5_000_000 },
+  { label: '$10M', value: 10_000_000 },
+];
+
+/**
+ * Reads a typed cap ceiling, accepting "5m", "$5,000,000" or "900k". A bare
+ * number is taken at face value — the parsed figure is echoed back under the
+ * input so a mis-scaled entry is obvious rather than silently wrong.
+ */
+function parseCapInput(raw: string): number | null {
+  const cleaned = raw.trim().toLowerCase().replace(/[$,\s]/g, '');
+  if (!cleaned) return null;
+
+  const match = cleaned.match(/^(\d+(?:\.\d+)?)(m|k)?$/);
+  if (!match) return null;
+
+  const amount = parseFloat(match[1]);
+  if (!isFinite(amount) || amount <= 0) return null;
+
+  const multiplier = match[2] === 'm' ? 1_000_000 : match[2] === 'k' ? 1_000 : 1;
+  return Math.round(amount * multiplier);
+}
 
 interface FreeAgentsByPosition {
   [position: string]: FreeAgent[];
@@ -40,6 +66,10 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
   const [error, setError] = useState('');
   const [selectedPosition, setSelectedPosition] = useState('QB');
   const [totalFreeAgents, setTotalFreeAgents] = useState(0);
+  const [affordableFreeAgents, setAffordableFreeAgents] = useState(0);
+  const [capInput, setCapInput] = useState('');
+  const [maxCap, setMaxCap] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [uploadingProjections, setUploadingProjections] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadFormat, setUploadFormat] = useState<ImportFormat | null>(null);
@@ -59,15 +89,21 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
   }, [user]);
 
   const fetchFreeAgents = useCallback(async () => {
+    setRefreshing(true);
     try {
       const headers = await getAuthHeader();
-      const response = await fetch('/api/free-agents', { headers });
+      // The cap ceiling is applied server-side, before the per-position top 10,
+      // so a tight budget still returns the best players it can afford.
+      const query = maxCap === null ? '' : `?maxCap=${maxCap}`;
+      const response = await fetch(`/api/free-agents${query}`, { headers });
 
       const data = await response.json();
 
       if (data.success) {
         setFreeAgents(data.data);
         setTotalFreeAgents(data.totalFreeAgents);
+        setAffordableFreeAgents(data.affordableFreeAgents ?? data.totalFreeAgents);
+        setError('');
       } else {
         setError(data.message || 'Failed to fetch free agents');
       }
@@ -76,12 +112,20 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [getAuthHeader]);
+  }, [getAuthHeader, maxCap]);
 
   useEffect(() => {
     fetchFreeAgents();
   }, [fetchFreeAgents]);
+
+  // Debounced so typing a ceiling does not fire a request per keystroke.
+  useEffect(() => {
+    const parsed = parseCapInput(capInput);
+    const timer = setTimeout(() => setMaxCap(parsed), 400);
+    return () => clearTimeout(timer);
+  }, [capInput]);
 
   // One button for every supported CSV shape — the API detects which format
   // the file is (projections or expert rankings) and reports it back.
@@ -162,6 +206,15 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
     return 'cap';
   }, [freeAgents, selectedPosition]);
 
+  // Whether a rankings file covers this position, which is what makes an
+  // absent rank worth labelling as "Unranked" rather than leaving blank.
+  const hasRankingsLoaded = useMemo(
+    () => (freeAgents[selectedPosition] || []).some((player) => player.expertRank !== undefined),
+    [freeAgents, selectedPosition]
+  );
+
+  const parsedCapInput = parseCapInput(capInput);
+
   const sortBasisLabel = {
     tiers: 'Ranked by tiers with salary cap values',
     projections: 'Ranked by projections with salary cap values',
@@ -183,7 +236,10 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
     );
   }
 
-  if (error) {
+  // Only take over the page when there is nothing to show. Changing the cap
+  // filter refetches, and a failed refetch should not throw away a list the
+  // user is already reading — that surfaces inline next to the filter instead.
+  if (error && Object.keys(freeAgents).length === 0) {
     return (
       <div className="min-h-screen bg-sleeper-bg flex items-center justify-center">
         <div className="text-center">
@@ -202,7 +258,9 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
             <div>
               <h1 className="text-3xl font-bold text-sleeper-text">Top Free Agents</h1>
               <p className="text-sm text-sleeper-muted mt-1">
-                {totalFreeAgents} total free agents available
+                {maxCap === null
+                  ? `${totalFreeAgents.toLocaleString()} total free agents available`
+                  : `${affordableFreeAgents.toLocaleString()} of ${totalFreeAgents.toLocaleString()} free agents within $${maxCap.toLocaleString('en-US')}`}
                 {uploadMessage && uploadMessage.includes('Successfully') && (
                   <span className="ml-2 text-sleeper-teal font-medium">
                     • Sorted by {uploadFormat === 'expertRankings' ? 'expert rankings' : 'projections'}
@@ -353,6 +411,60 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
           ))}
         </div>
 
+        {/* Cap Filter */}
+        <div className="mt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-sleeper-muted">Cap to spend:</span>
+            {CAP_PRESETS.map((preset) => (
+              <button
+                key={preset.value}
+                onClick={() => { setCapInput(preset.label.replace('$', '')); setMaxCap(preset.value); }}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                  maxCap === preset.value
+                    ? 'bg-sleeper-teal text-sleeper-bg border-sleeper-teal'
+                    : 'bg-transparent text-sleeper-muted border-sleeper-border hover:text-sleeper-text hover:border-sleeper-teal/50'
+                }`}
+              >
+                {preset.label}
+              </button>
+            ))}
+            <button
+              onClick={() => { setCapInput(''); setMaxCap(null); }}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                maxCap === null
+                  ? 'bg-sleeper-text text-sleeper-bg border-sleeper-text'
+                  : 'bg-transparent text-sleeper-muted border-sleeper-border hover:text-sleeper-text hover:border-sleeper-teal/50'
+              }`}
+            >
+              Any
+            </button>
+            <input
+              type="text"
+              value={capInput}
+              onChange={(e) => setCapInput(e.target.value)}
+              placeholder="e.g. 5m"
+              aria-label="Maximum cap value to spend"
+              className="w-28 px-3 py-1 text-xs bg-sleeper-bg border border-sleeper-border rounded-full text-sleeper-text placeholder-sleeper-faint focus:outline-none focus:ring-2 focus:ring-sleeper-teal focus:border-sleeper-teal"
+            />
+            {refreshing && <span className="text-xs text-sleeper-faint">Updating…</span>}
+            {error && !refreshing && <span className="text-xs text-sleeper-red">{error}</span>}
+          </div>
+          {capInput.trim() && (
+            <p className="mt-2 text-xs text-sleeper-faint">
+              {parsedCapInput === null ? (
+                <span className="text-sleeper-red">
+                  Couldn&apos;t read that amount — try 5m, 900k or 5000000
+                </span>
+              ) : (
+                <>
+                  At or below ${parsedCapInput.toLocaleString('en-US')} •{' '}
+                  {affordableFreeAgents.toLocaleString()} of {totalFreeAgents.toLocaleString()} free agents fit
+                </>
+              )}
+            </p>
+          )}
+        </div>
+
         {/* Free Agents Table */}
         <div className="mt-6">
           <div className="bg-sleeper-surface border border-sleeper-border overflow-hidden rounded-xl">
@@ -362,6 +474,7 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
               </h3>
               <p className="mt-1 max-w-2xl text-sm text-sleeper-muted">
                 {sortBasisLabel}
+                {maxCap !== null && ` • capped at $${maxCap.toLocaleString('en-US')}`}
               </p>
             </div>
             <ul className="divide-y divide-sleeper-border">
@@ -408,20 +521,12 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
                         ) : (
                           <div className="text-sm font-medium text-sleeper-text">{player.cap_value_formatted}</div>
                         )}
-                        <div className="text-sm text-sleeper-faint">
-                          {player.tier !== undefined ? (
-                            <>Tier {player.tier} • Rank #{player.ranking}</>
-                          ) : player.projection !== undefined ? (
-                            <>Projected • Rank #{player.ranking}</>
-                          ) : (
-                            <>Rank #{player.ranking} overall</>
-                          )}
-                        </div>
-                        {/* Imported expert rankings, shown alongside whichever
-                            metric is driving the order */}
-                        {player.expertRank !== undefined && (
-                          <div className="text-xs text-sleeper-muted mt-0.5">
-                            <span className="text-sleeper-purple font-medium">Expert #{player.expertRank}</span>
+                        {/* The rank comes from the imported rankings file, which
+                            ranks rostered and free-agent players alike. Players
+                            the file does not list simply have no rank. */}
+                        {player.expertRank !== undefined ? (
+                          <div className="text-sm text-sleeper-faint">
+                            <span className="text-sleeper-purple font-medium">Rank #{player.expertRank}</span>
                             {player.expertEcr !== undefined && <> • ECR {player.expertEcr}</>}
                             {player.expertVsEcr !== undefined && player.expertVsEcr !== 0 && (
                               <>
@@ -432,16 +537,20 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
                               </>
                             )}
                           </div>
-                        )}
+                        ) : hasRankingsLoaded ? (
+                          <div className="text-sm text-sleeper-faint">Unranked</div>
+                        ) : null}
                       </div>
                     </div>
                   </div>
                 </li>
               )) : (
                 <li className="px-4 py-8 text-center text-sleeper-muted">
-                  {markFilter === 'all'
-                    ? `No free agents available for ${selectedPosition}`
-                    : `No ${markFilter}-marked free agents for ${selectedPosition}`}
+                  {markFilter !== 'all'
+                    ? `No ${markFilter}-marked free agents for ${selectedPosition}`
+                    : maxCap === null
+                      ? `No free agents available for ${selectedPosition}`
+                      : `No ${selectedPosition} free agents at or below $${maxCap.toLocaleString('en-US')}`}
                 </li>
               )}
             </ul>
