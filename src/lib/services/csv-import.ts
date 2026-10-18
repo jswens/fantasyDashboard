@@ -287,3 +287,76 @@ export function buildExpertRankingMap(
 
   return rankings;
 }
+
+export interface StoredProjection {
+  playerName: string;
+  team: string;
+  projection: number;
+}
+
+/** Shape of a cache/projections entry, which may predate the normalized keys. */
+interface StoredProjectionEntry {
+  playerName?: string;
+  team?: string;
+  projection?: number;
+}
+
+/**
+ * Keys projections by normalized name so an uploaded "Ernest Jones IV" lines
+ * up with the Sleeper spelling. Keeps the higher projection on duplicates.
+ */
+export function buildProjectionMap(rows: ProjectionRow[]): Record<string, StoredProjection> {
+  const projections: Record<string, StoredProjection> = {};
+
+  rows.forEach(row => {
+    const key = normalizePlayerName(row.playerName);
+    if (!key) return;
+
+    const existing = projections[key];
+    if (existing && existing.projection >= row.projection) return;
+
+    projections[key] = {
+      playerName: row.playerName,
+      team: row.team,
+      projection: row.projection,
+    };
+  });
+
+  return projections;
+}
+
+/**
+ * Re-keys a stored projections map by normalized name as it is read.
+ *
+ * Normalizing on read, rather than re-keying the document once on load: the
+ * free agents endpoint is a plain GET served to every league member, so it has
+ * no business writing to cache/projections, and an admin's existing upload
+ * (keyed by raw name) must keep matching the moment this deploys. Normalizing
+ * is idempotent, so maps written by buildProjectionMap pass through unchanged.
+ */
+export function normalizeStoredProjectionMap(
+  stored: Record<string, StoredProjectionEntry>
+): Record<string, StoredProjection> {
+  const projections: Record<string, StoredProjection> = {};
+
+  Object.entries(stored || {}).forEach(([storedKey, entry]) => {
+    if (!entry || typeof entry.projection !== 'number') return;
+
+    // Entries written before the re-keying have no playerName — their key was
+    // the raw uploaded name.
+    const rawName = entry.playerName || storedKey;
+    const key = normalizePlayerName(rawName);
+    if (!key) return;
+
+    const existing = projections[key];
+    if (existing && existing.projection >= entry.projection) return;
+
+    projections[key] = {
+      playerName: rawName,
+      team: entry.team || '',
+      projection: entry.projection,
+    };
+  });
+
+  return projections;
+}

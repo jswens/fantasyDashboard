@@ -3,7 +3,12 @@ import { FantasyDataService } from '@/lib/services/fantasy-data';
 import { requireAuth } from '@/lib/auth/firebase-auth';
 import { adminDb } from '@/lib/firebase-admin';
 import { normalizePlayerName } from '@/lib/services/cap-numbers';
-import type { StoredExpertRanking } from '@/lib/services/csv-import';
+import {
+  normalizeStoredProjectionMap,
+  type StoredExpertRanking,
+  type StoredProjection,
+} from '@/lib/services/csv-import';
+import { normalizeStoredTierMap, type StoredTier } from '@/lib/services/tier-import';
 
 interface ProcessedPlayer {
   first_name: string;
@@ -54,23 +59,25 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
     });
   });
 
-  // Load projections if available
-  let projections: Record<string, { team: string; projection: number }> = {};
+  // Load projections if available. Uploads written since the re-keying are
+  // already keyed by normalized name; normalizing here also covers documents
+  // an admin uploaded before it, which are keyed by the raw CSV name.
+  let projections: Record<string, StoredProjection> = {};
   try {
     const projDoc = await adminDb.collection('cache').doc('projections').get();
     if (projDoc.exists) {
-      projections = projDoc.data()?.projections || {};
+      projections = normalizeStoredProjectionMap(projDoc.data()?.projections || {});
     }
   } catch (error) {
     console.warn('No projections data available:', error);
   }
 
-  // Load tiers if available
-  let tiers: Record<string, { tier: number; position: number }> = {};
+  // Load tiers if available (same normalize-on-read treatment as projections)
+  let tiers: Record<string, StoredTier> = {};
   try {
     const tiersDoc = await adminDb.collection('cache').doc('tiers').get();
     if (tiersDoc.exists) {
-      tiers = tiersDoc.data()?.tiers || {};
+      tiers = normalizeStoredTierMap(tiersDoc.data()?.tiers || {});
     }
   } catch (error) {
     console.warn('No tier data available:', error);
@@ -105,9 +112,12 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
       .filter(([, player]) => player.position && player.cap_value > 0) // Only players with valid position and cap value
       .map(([playerId, player]) => {
         const playerName = `${player.first_name} ${player.last_name}`;
-        const projection = projections[playerName]?.projection;
-        const tierData = tiers[playerName];
-        const expert = expertRankings[normalizePlayerName(playerName)];
+        // All three uploaded sources are keyed by normalized name, so a
+        // difference in spelling or suffix does not drop the match.
+        const nameKey = normalizePlayerName(playerName);
+        const projection = projections[nameKey]?.projection;
+        const tierData = tiers[nameKey];
+        const expert = expertRankings[nameKey];
 
         return {
           playerId,

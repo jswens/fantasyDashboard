@@ -2,57 +2,12 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAdmin } from '@/lib/auth/firebase-auth';
 import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-
-interface TierData {
-  [playerName: string]: {
-    tier: number;
-    position: number; // position within tier
-  };
-}
+import { buildTierMap, parseTierText, type StoredTier } from '@/lib/services/tier-import';
 
 interface UploadResponse {
   success: boolean;
   message: string;
-  data?: TierData;
-}
-
-function parseTierText(tierText: string): TierData {
-  const tiers: TierData = {};
-  
-  console.log(`[TIER_UPLOAD] Parsing tier text: ${tierText.substring(0, 100)}...`);
-  
-  // Split by lines and process each line
-  const lines = tierText.split('\n').filter(line => line.trim());
-  
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    if (!trimmedLine) continue;
-    
-    // Match pattern: "Tier X: Player1, Player2, Player3"
-    const tierMatch = trimmedLine.match(/^Tier\s+(\d+):\s*(.+)$/i);
-    
-    if (tierMatch) {
-      const tierNumber = parseInt(tierMatch[1]);
-      const playersText = tierMatch[2];
-      
-      // Split players by comma and clean up names
-      const players = playersText.split(',').map(p => p.trim()).filter(p => p);
-      
-      console.log(`[TIER_UPLOAD] Tier ${tierNumber}: ${players.length} players`);
-      
-      players.forEach((playerName, index) => {
-        if (playerName) {
-          tiers[playerName] = {
-            tier: tierNumber,
-            position: index + 1
-          };
-        }
-      });
-    }
-  }
-  
-  console.log(`[TIER_UPLOAD] Parsed ${Object.keys(tiers).length} players into tiers`);
-  return tiers;
+  data?: Record<string, StoredTier>;
 }
 
 export default async function handler(
@@ -80,17 +35,22 @@ export default async function handler(
 
   try {
     const { tierText } = req.body;
-    
+
     if (!tierText || typeof tierText !== 'string') {
       return res.status(400).json({
         success: false,
         message: 'Tier text is required'
       });
     }
-    
-    // Parse tier data
-    const tiers = parseTierText(tierText);
-    
+
+    console.log(`[TIER_UPLOAD] Parsing tier text: ${tierText.substring(0, 100)}...`);
+
+    // Keyed by normalized name so the pasted spelling does not have to match
+    // Sleeper's; each entry keeps the pasted name for display and debugging.
+    const tiers = buildTierMap(parseTierText(tierText));
+
+    console.log(`[TIER_UPLOAD] Parsed ${Object.keys(tiers).length} players into tiers`);
+
     if (Object.keys(tiers).length === 0) {
       return res.status(400).json({
         success: false,

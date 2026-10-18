@@ -6,9 +6,11 @@ import formidable from 'formidable';
 import fs from 'fs';
 import {
   buildExpertRankingMap,
+  buildProjectionMap,
   parseImportCsv,
   type CsvImportFormat,
   type StoredExpertRanking,
+  type StoredProjection,
 } from '@/lib/services/csv-import';
 
 export const config = {
@@ -17,18 +19,11 @@ export const config = {
   },
 };
 
-interface ProjectionData {
-  [playerName: string]: {
-    team: string;
-    projection: number;
-  };
-}
-
 interface UploadResponse {
   success: boolean;
   message: string;
   format?: CsvImportFormat;
-  data?: ProjectionData | Record<string, StoredExpertRanking>;
+  data?: Record<string, StoredProjection> | Record<string, StoredExpertRanking>;
 }
 
 export default async function handler(
@@ -111,13 +106,9 @@ export default async function handler(
       });
     }
 
-    const projections: ProjectionData = {};
-    parsed.rows.forEach(row => {
-      projections[row.playerName] = {
-        team: row.team,
-        projection: row.projection,
-      };
-    });
+    // Keyed by normalized name so the uploaded spelling does not have to match
+    // Sleeper's; each entry keeps the raw CSV name for display and debugging.
+    const projections = buildProjectionMap(parsed.rows);
 
     // Store projections in Firestore
     await adminDb.collection('cache').doc('projections').set({
