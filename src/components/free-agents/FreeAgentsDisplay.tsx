@@ -16,7 +16,12 @@ interface FreeAgent {
   projection?: number;
   tier?: number;
   tierPosition?: number;
+  expertRank?: number;
+  expertEcr?: number;
+  expertVsEcr?: number;
 }
+
+type ImportFormat = 'projections' | 'expertRankings';
 
 interface FreeAgentsByPosition {
   [position: string]: FreeAgent[];
@@ -37,6 +42,7 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
   const [totalFreeAgents, setTotalFreeAgents] = useState(0);
   const [uploadingProjections, setUploadingProjections] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
+  const [uploadFormat, setUploadFormat] = useState<ImportFormat | null>(null);
   const [showTierInput, setShowTierInput] = useState(false);
   const [tierText, setTierText] = useState('');
   const [uploadingTiers, setUploadingTiers] = useState(false);
@@ -77,9 +83,12 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
     fetchFreeAgents();
   }, [fetchFreeAgents]);
 
+  // One button for every supported CSV shape — the API detects which format
+  // the file is (projections or expert rankings) and reports it back.
   const handleProjectionUpload = async (file: File) => {
     setUploadingProjections(true);
     setUploadMessage('');
+    setUploadFormat(null);
 
     try {
       const headers = await getAuthHeader();
@@ -96,6 +105,7 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
 
       if (data.success) {
         setUploadMessage(data.message);
+        setUploadFormat(data.format ?? null);
         setLoading(true);
         await fetchFreeAgents();
       } else {
@@ -142,6 +152,23 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
     }
   };
 
+  // What actually decided the order of the list on screen. Derived from the
+  // rows themselves so it survives a reload, unlike the upload messages.
+  const sortBasis = useMemo<'tiers' | 'projections' | 'expertRankings' | 'cap'>(() => {
+    const list = freeAgents[selectedPosition] || [];
+    if (list.some((player) => player.tier !== undefined)) return 'tiers';
+    if (list.some((player) => player.projection !== undefined)) return 'projections';
+    if (list.some((player) => player.expertRank !== undefined)) return 'expertRankings';
+    return 'cap';
+  }, [freeAgents, selectedPosition]);
+
+  const sortBasisLabel = {
+    tiers: 'Ranked by tiers with salary cap values',
+    projections: 'Ranked by projections with salary cap values',
+    expertRankings: 'Ranked by imported expert rankings with salary cap values',
+    cap: 'Ranked by salary cap value',
+  }[sortBasis];
+
   const displayedFreeAgents = useMemo(() => {
     const list = freeAgents[selectedPosition] || [];
     if (markFilter === 'all') return list;
@@ -177,7 +204,9 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
               <p className="text-sm text-sleeper-muted mt-1">
                 {totalFreeAgents} total free agents available
                 {uploadMessage && uploadMessage.includes('Successfully') && (
-                  <span className="ml-2 text-sleeper-teal font-medium">• Sorted by projections</span>
+                  <span className="ml-2 text-sleeper-teal font-medium">
+                    • Sorted by {uploadFormat === 'expertRankings' ? 'expert rankings' : 'projections'}
+                  </span>
                 )}
                 {tierMessage && tierMessage.includes('Successfully') && (
                   <span className="ml-2 text-sleeper-purple font-medium">• Sorted by tiers</span>
@@ -187,7 +216,10 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
             {isAdmin && (
               <div className="flex space-x-3">
                 {/* Upload Projections */}
-                <label className="bg-sleeper-teal text-sleeper-bg px-4 py-2 rounded-full font-semibold hover:bg-sleeper-teal-dark flex items-center cursor-pointer transition-colors">
+                <label
+                  title="Accepts projections (Player, Team, points) or expert rankings (Rank, Player Name, Team, Position, ECR)"
+                  className="bg-sleeper-teal text-sleeper-bg px-4 py-2 rounded-full font-semibold hover:bg-sleeper-teal-dark flex items-center cursor-pointer transition-colors"
+                >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
@@ -329,10 +361,7 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
                 Top 10 {selectedPosition} Free Agents
               </h3>
               <p className="mt-1 max-w-2xl text-sm text-sleeper-muted">
-                {tierMessage && tierMessage.includes('Successfully') ?
-                  'Ranked by tiers with salary cap values' :
-                  uploadMessage && uploadMessage.includes('Successfully') ?
-                    'Ranked by projections with salary cap values' : 'Ranked by salary cap value'}
+                {sortBasisLabel}
               </p>
             </div>
             <ul className="divide-y divide-sleeper-border">
@@ -388,6 +417,22 @@ export default function FreeAgentsDisplay({ user, isAdmin, isCommissioner = fals
                             <>Rank #{player.ranking} overall</>
                           )}
                         </div>
+                        {/* Imported expert rankings, shown alongside whichever
+                            metric is driving the order */}
+                        {player.expertRank !== undefined && (
+                          <div className="text-xs text-sleeper-muted mt-0.5">
+                            <span className="text-sleeper-purple font-medium">Expert #{player.expertRank}</span>
+                            {player.expertEcr !== undefined && <> • ECR {player.expertEcr}</>}
+                            {player.expertVsEcr !== undefined && player.expertVsEcr !== 0 && (
+                              <>
+                                {' • '}
+                                <span className={player.expertVsEcr > 0 ? 'text-sleeper-teal' : 'text-sleeper-red'}>
+                                  {player.expertVsEcr > 0 ? '+' : ''}{player.expertVsEcr} vs ECR
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { FantasyDataService } from '@/lib/services/fantasy-data';
 import { requireAuth } from '@/lib/auth/firebase-auth';
 import { adminDb } from '@/lib/firebase-admin';
+import { normalizePlayerName } from '@/lib/services/cap-numbers';
+import type { StoredExpertRanking } from '@/lib/services/csv-import';
 
 interface ProcessedPlayer {
   first_name: string;
@@ -23,6 +25,9 @@ interface FreeAgent {
   projection?: number;
   tier?: number;
   tierPosition?: number;
+  expertRank?: number;
+  expertEcr?: number;
+  expertVsEcr?: number;
 }
 
 interface FreeAgentsByPosition {
@@ -71,6 +76,17 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
     console.warn('No tier data available:', error);
   }
 
+  // Load imported expert rankings if available (keyed by normalized name)
+  let expertRankings: Record<string, StoredExpertRanking> = {};
+  try {
+    const rankingsDoc = await adminDb.collection('cache').doc('expertRankings').get();
+    if (rankingsDoc.exists) {
+      expertRankings = rankingsDoc.data()?.rankings || {};
+    }
+  } catch (error) {
+    console.warn('No expert ranking data available:', error);
+  }
+
   // Load processed players from Firestore
   try {
     const snapshot = await adminDb.collection('players').get();
@@ -91,28 +107,34 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
         const playerName = `${player.first_name} ${player.last_name}`;
         const projection = projections[playerName]?.projection;
         const tierData = tiers[playerName];
-        
+        const expert = expertRankings[normalizePlayerName(playerName)];
+
         return {
           playerId,
           player,
           playerName,
           projection,
           tier: tierData?.tier,
-          tierPosition: tierData?.position
+          tierPosition: tierData?.position,
+          expertRank: expert?.rank,
+          expertEcr: expert?.ecr ?? undefined,
+          expertVsEcr: expert?.vsEcr ?? undefined
         };
       });
 
-    // Sort by tier first, then projection, then cap value
+    // Ranking priority: tiers, then projections, then imported expert
+    // rankings, then cap value. Each source only breaks ties the one above it
+    // left open, so uploading rankings never reorders a tiered or projected list.
     const hasTiers = Object.keys(tiers).length > 0;
     const hasProjections = Object.keys(projections).length > 0;
-    
-    if (hasTiers) {
-      // Sort by tier (ascending), then by position within tier (ascending)
-      freeAgentEntries.sort((a, b) => {
+    const hasExpertRankings = Object.keys(expertRankings).length > 0;
+
+    freeAgentEntries.sort((a, b) => {
+      if (hasTiers) {
         // Players with tiers come first
         if (a.tier !== undefined && b.tier === undefined) return -1;
         if (a.tier === undefined && b.tier !== undefined) return 1;
-        
+
         // Both have tiers - sort by tier, then position within tier
         if (a.tier !== undefined && b.tier !== undefined) {
           if (a.tier !== b.tier) {
@@ -120,45 +142,36 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
           }
           return (a.tierPosition || 0) - (b.tierPosition || 0); // Lower position = higher ranking
         }
-        
-        // Neither has tiers - use projection or cap value
-        if (hasProjections) {
-          if (a.projection !== undefined && b.projection !== undefined) {
+      }
+
+      if (hasProjections) {
+        // Players with projections come first, highest projection on top
+        if (a.projection !== undefined && b.projection === undefined) return -1;
+        if (a.projection === undefined && b.projection !== undefined) return 1;
+        if (a.projection !== undefined && b.projection !== undefined) {
+          if (a.projection !== b.projection) {
             return b.projection - a.projection;
           }
-          if (a.projection !== undefined && b.projection === undefined) {
-            return -1;
+        }
+      }
+
+      if (hasExpertRankings) {
+        // Ranked players come first, lowest rank number on top
+        if (a.expertRank !== undefined && b.expertRank === undefined) return -1;
+        if (a.expertRank === undefined && b.expertRank !== undefined) return 1;
+        if (a.expertRank !== undefined && b.expertRank !== undefined) {
+          if (a.expertRank !== b.expertRank) {
+            return a.expertRank - b.expertRank;
           }
-          if (a.projection === undefined && b.projection !== undefined) {
-            return 1;
-          }
         }
-        
-        // Fall back to cap value
-        return b.player.cap_value - a.player.cap_value;
-      });
-    } else if (hasProjections) {
-      // Sort by projection descending (players with projections first, then by cap value)
-      freeAgentEntries.sort((a, b) => {
-        if (a.projection !== undefined && b.projection !== undefined) {
-          return b.projection - a.projection;
-        }
-        if (a.projection !== undefined && b.projection === undefined) {
-          return -1; // a comes first
-        }
-        if (a.projection === undefined && b.projection !== undefined) {
-          return 1; // b comes first
-        }
-        // Both undefined, sort by cap value
-        return b.player.cap_value - a.player.cap_value;
-      });
-    } else {
-      // Sort by cap value descending (default)
-      freeAgentEntries.sort((a, b) => b.player.cap_value - a.player.cap_value);
-    }
+      }
+
+      // Fall back to cap value
+      return b.player.cap_value - a.player.cap_value;
+    });
 
     // Build final free agents array with rankings
-    freeAgentEntries.forEach(({ playerId, player, playerName, projection, tier, tierPosition }, index) => {
+    freeAgentEntries.forEach(({ playerId, player, playerName, projection, tier, tierPosition, expertRank, expertEcr, expertVsEcr }, index) => {
       freeAgents.push({
         player_id: playerId,
         full_name: playerName,
@@ -169,7 +182,10 @@ async function identifyFreeAgents(): Promise<FreeAgent[]> {
         ranking: index + 1,
         projection,
         tier,
-        tierPosition
+        tierPosition,
+        expertRank,
+        expertEcr,
+        expertVsEcr
       });
     });
 

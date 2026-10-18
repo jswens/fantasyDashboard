@@ -4,6 +4,12 @@ import { adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import formidable from 'formidable';
 import fs from 'fs';
+import {
+  buildExpertRankingMap,
+  parseImportCsv,
+  type CsvImportFormat,
+  type StoredExpertRanking,
+} from '@/lib/services/csv-import';
 
 export const config = {
   api: {
@@ -21,85 +27,8 @@ interface ProjectionData {
 interface UploadResponse {
   success: boolean;
   message: string;
-  data?: ProjectionData;
-}
-
-function parseCSV(csvContent: string): ProjectionData {
-  const lines = csvContent.split('\n').filter(line => line.trim());
-  const projections: ProjectionData = {};
-  
-  if (lines.length === 0) return projections;
-  
-  // Parse header to determine format
-  const headerLine = lines[0].trim();
-  const headers = headerLine.split(',').map(h => h.trim().toLowerCase());
-  
-  console.log(`[UPLOAD] CSV headers detected: ${headers.join(', ')}`);
-  
-  // Determine column indices based on header format
-  let playerNameIndex = -1;
-  let teamIndex = -1;
-  let projectionIndex = -1;
-  
-  // Look for player name column
-  const playerNameOptions = ['player', 'name', 'full_name', 'player_name'];
-  for (let i = 0; i < headers.length; i++) {
-    if (playerNameOptions.some(option => headers[i].includes(option))) {
-      playerNameIndex = i;
-      break;
-    }
-  }
-  
-  // Look for team column
-  const teamOptions = ['team', 'pos'];
-  for (let i = 0; i < headers.length; i++) {
-    if (teamOptions.some(option => headers[i] === option)) {
-      teamIndex = i;
-      break;
-    }
-  }
-  
-  // Look for projection column
-  const projectionOptions = ['projection', 'projections', 'points', 'pts', 'big3 ffpts', 'ffpts'];
-  for (let i = 0; i < headers.length; i++) {
-    const header = headers[i].toLowerCase();
-    if (projectionOptions.some(option => header.includes(option))) {
-      projectionIndex = i;
-      break;
-    }
-  }
-  
-  console.log(`[UPLOAD] Column indices - Player: ${playerNameIndex}, Team: ${teamIndex}, Projection: ${projectionIndex}`);
-  
-  // Fallback to original format if header detection fails
-  if (playerNameIndex === -1) playerNameIndex = 0;
-  if (teamIndex === -1) teamIndex = 1;
-  if (projectionIndex === -1) projectionIndex = 2;
-  
-  // Parse data rows
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    
-    const columns = line.split(',');
-    
-    if (columns.length > Math.max(playerNameIndex, teamIndex, projectionIndex)) {
-      const playerName = columns[playerNameIndex]?.trim();
-      const team = columns[teamIndex]?.trim() || '';
-      const projectionStr = columns[projectionIndex]?.trim();
-      const projection = parseFloat(projectionStr);
-      
-      if (playerName && !isNaN(projection) && projection > 0) {
-        projections[playerName] = {
-          team,
-          projection
-        };
-      }
-    }
-  }
-  
-  console.log(`[UPLOAD] Parsed ${Object.keys(projections).length} valid projections`);
-  return projections;
+  format?: CsvImportFormat;
+  data?: ProjectionData | Record<string, StoredExpertRanking>;
 }
 
 export default async function handler(
@@ -131,9 +60,9 @@ export default async function handler(
     });
 
     const [, files] = await form.parse(req);
-    
+
     const file = Array.isArray(files.projections) ? files.projections[0] : files.projections;
-    
+
     if (!file) {
       return res.status(400).json({
         success: false,
@@ -143,16 +72,52 @@ export default async function handler(
 
     // Read the uploaded file
     const csvContent = fs.readFileSync(file.filepath, 'utf8');
-    
-    // Parse CSV data
-    const projections = parseCSV(csvContent);
-    
-    if (Object.keys(projections).length === 0) {
+
+    // Detect which supported format this is, then store it accordingly
+    let parsed;
+    try {
+      parsed = parseImportCsv(csvContent);
+    } catch (parseError) {
+      const reason = parseError instanceof Error ? parseError.message : 'Unrecognized CSV';
+      console.warn(`[UPLOAD] Could not parse CSV: ${reason}`);
       return res.status(400).json({
         success: false,
-        message: 'No valid projection data found in file'
+        message: `${reason}. Supported formats: projections (Player, Team, points) or expert rankings (Rank, Player Name, Team, Position, ECR).`
       });
     }
+
+    console.log(`[UPLOAD] Detected format: ${parsed.format} with ${parsed.rows.length} rows`);
+
+    if (parsed.format === 'expertRankings') {
+      const rankings = buildExpertRankingMap(parsed.rows);
+
+      // Merged, not replaced: these exports come one position group at a time,
+      // so a new LB file must not wipe previously uploaded DB/DL rankings.
+      await adminDb.collection('cache').doc('expertRankings').set(
+        {
+          rankings,
+          uploadedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      const positionNote = parsed.positions.length > 0 ? ` (${parsed.positions.join(', ')})` : '';
+
+      return res.status(200).json({
+        success: true,
+        format: parsed.format,
+        message: `Successfully uploaded expert rankings for ${Object.keys(rankings).length} players${positionNote}`,
+        data: rankings
+      });
+    }
+
+    const projections: ProjectionData = {};
+    parsed.rows.forEach(row => {
+      projections[row.playerName] = {
+        team: row.team,
+        projection: row.projection,
+      };
+    });
 
     // Store projections in Firestore
     await adminDb.collection('cache').doc('projections').set({
@@ -162,6 +127,7 @@ export default async function handler(
 
     return res.status(200).json({
       success: true,
+      format: parsed.format,
       message: `Successfully uploaded projections for ${Object.keys(projections).length} players`,
       data: projections
     });
